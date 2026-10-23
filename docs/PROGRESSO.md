@@ -8,7 +8,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | --- | --- | --- | --- |
 | 0 | Fundação | concluída com ressalvas (ver Decisões 3–4 e "O que não foi possível verificar") | `30cdcb5` |
 | 1 | API de salas e sinalização | concluída | `8ea08bf` |
-| 2 | Transmissão no navegador | pendente | |
+| 2 | Transmissão no navegador | concluída com ressalvas (teste manual com tela real pendente, ver abaixo) | `7b2c8ce` |
 | 3 | Internet: TURN e deploy | pendente | |
 | 4 | Endurecimento e entrega | pendente | |
 
@@ -52,6 +52,20 @@ Para cada fase, liste o comando e o resultado real (passou, falhou, não executa
 | `grep` das chamadas de log em `apps/api/src` | 10 chamadas; nenhuma recebe SDP, candidato, token ou segredo |
 | SIGINT na API (`enableShutdownHooks`, varredura com `unref`) | processo encerra em menos de 1 s |
 
+### Fase 2 (2026-10-23, Node 26.0.0, pnpm 12.15.0, Chromium headless shell 156 do Playwright 1.64.1, macOS)
+
+| Comando | Resultado |
+| --- | --- |
+| `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check` | exit 0 |
+| `pnpm test` | passou: shared 13, web 24 (fila de ICE, erros de captura, `host-token`, pluralização, `api.ts`, fumaça da Home), api 49. Não roda o e2e |
+| `pnpm --filter @app/e2e exec playwright install chromium` | Chromium baixado |
+| `pnpm test:e2e` | 6/6 passaram (cenários 1 a 6 da tarefa 9), em 4 rodadas normais, uma delas com o cache do Vite apagado |
+| `playwright test --repeat-each=3` (fora do pedido) | 13 passaram, 5 falharam: todas na 3ª repetição, por causa do limite de 10 salas por minuto (a página mostrou "Muitas tentativas. Aguarde um minuto."). Comportamento correto, não é defeito |
+| Navegador embutido, 360 px, claro e escuro | Home, anfitrião ao vivo e espectador sem rolagem horizontal (`scrollWidth` = 360); vídeo chegou ao espectador (`videoWidth` 1280, tocando); console sem token, SDP ou candidato; URL sem token (`/host/<roomId>`); token só em `localStorage` (`host-token:<roomId>`) |
+| `grep` em `apps/web/src` | 0 `any`, 0 `console.*`, 0 casts; `hostToken` só vai para `localStorage` e para o `host:join` |
+
+**Teste manual que só uma pessoa pode fazer** (o e2e usa captura simulada): com `pnpm dev`, (1) criar sala em `http://localhost:5173`; (2) clicar "Compartilhar tela" e escolher uma **aba do navegador com vídeo e áudio**, marcando a opção de áudio; (3) abrir o link em outra janela; (4) conferir que o vídeo aparece e clicar "Ativar som"; (5) usar o botão do navegador "Parar compartilhamento" e conferir que o espectador volta a "Aguardando o anfitrião iniciar a transmissão." e o anfitrião volta a mostrar "Compartilhar novamente". Repetir em Firefox e Safari se possível.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -76,6 +90,16 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 1) — Schemas zod descartam campos não declarados. Um espectador que manda `viewerId` no `signal:ice` tem o campo ignorado e o servidor usa o id dele (coberto no teste 8).
 - 2026-10-23 (Fase 1) — Resposta 429 do throttler é a padrão do `@nestjs/throttler` (`{ statusCode: 429, message: … }`); o front deve olhar só o status. Foi acrescentado o schema `apiErrorResponse` (`ROOM_NOT_FOUND` | `SERVER_BUSY`) em `@app/shared` para as respostas de erro de sala.
 - 2026-10-23 (Fase 1) — `viewerId` validado com `z.uuid()` (forma do zod 4; `z.string().uuid()` está obsoleta). `IceServer.urls` é sempre lista.
+- 2026-10-23 (Fase 2) — A tela inicial deixou de mostrar "API: ok/indisponível" (era só a prova da Fase 0); agora tem exatamente título, descrição, aviso de IP e botão da tabela de textos. `isApiHealthy` foi removido.
+- 2026-10-23 (Fase 2) — Textos que a tabela não cobre: "Ao vivo" (rótulo do `StatusPill`, citado nos cenários e2e); "Página não encontrada." na rota `*`, com link "Criar sala"; nome acessível "Link" no campo do link. O anfitrião reutiliza "Conectando à sala…" e "Conexão perdida. Reconectando…"; quando a sala termina, ele vê o texto do motivo (`HOST_ENDED`, `HOST_TIMEOUT`, `EXPIRED`) ou "Esta sala foi aberta em outra aba." **Revise se quiser outros textos.**
+- 2026-10-23 (Fase 2) — O espectador continua em "Aguardando…" depois de `room:status { live: true }` até a conexão WebRTC ficar `connected`; só então passa a "assistindo".
+- 2026-10-23 (Fase 2) — Botão "Ativar som" só aparece quando há faixa de áudio; "Tela cheia" só quando `document.fullscreenEnabled`.
+- 2026-10-23 (Fase 2) — `HostBroadcaster` ganhou `setViewers(ids)`: depois de reconectar, sincroniza a lista do `ack` sem criar peers, e então `rebuildAll()` cria uma oferta por espectador (evita oferta dupla).
+- 2026-10-23 (Fase 2) — Socket do anfitrião desconectado pelo servidor (`io server disconnect`) leva a `ended`, porque o cliente não reconecta sozinho nesse caso.
+- 2026-10-23 (Fase 2) — Rotas ficam em `App.tsx` (sem `routes.tsx` separado). Arquivos extras pequenos: `lib/format.ts` (pluralização) e `lib/end-reason.ts` (textos de fim e de estado compartilhados entre anfitrião e espectador).
+- 2026-10-23 (Fase 2) — `getRoom()` existe em `lib/api.ts` (pedido pela tarefa) e tem teste, mas nenhuma tela o usa: o `ack` do `viewer:join` já informa sala inexistente ou cheia.
+- 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
+- 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 1) — Nos testes de integração cada cenário sobe o próprio app (porta aleatória, config própria), o que isola o contador do throttler e os limites.
 
 ## Placeholders pendentes
@@ -94,6 +118,11 @@ Itens que o Claude Code não conseguiu executar (por exemplo, Docker ausente, te
 - Fase 1: TURN real não foi exercitado (só a geração de credenciais, conferida pelo vetor fixo); isso é da Fase 3.
 - Fase 1: o `ThrottlerGuard` com `TRUST_PROXY=1` atrás de um proxy real (IP vindo de `X-Forwarded-For`) não foi testado; os testes rodam com `TRUST_PROXY=0`.
 - Fase 1: conferência manual da troca de eventos: a primeira tentativa atingiu, sem eu saber, um `pnpm dev` aberto fora desta sessão (porta 3000) e o meu `kill -INT` encerrou a API dele; o shared (watch) e o Vite (5173) desse `pnpm dev` ficaram rodando. A conferência foi refeita numa instância própria na porta 3100 (resultado acima).
+- Fase 2: captura de tela real, áudio real e o botão "Parar compartilhamento" do navegador (evento `ended` da track) não foram exercitados; ficam para o teste manual acima.
+- Fase 2: só Chromium foi testado. Firefox e Safari não.
+- Fase 2: reconexão do anfitrião no navegador (queda do socket e `rebuildAll`) e o estado `failed` do espectador (10 s) não têm e2e nesta fase; a Fase 4 traz "recarregar anfitrião" e "timeout".
+- Fase 2: risco para a Fase 4: a suíte e2e roda numa única API e cada cenário cria uma sala; acima de 10 salas por minuto o limite de criação devolve 429. Hoje são 5.
+- Fase 2: o Vite registra `write EPIPE` no proxy quando um WebSocket fecha durante o e2e; não afeta os testes.
 - Observação: se o processo da API cai, o `pnpm dev` (`pnpm -r --parallel`) encerra os outros processos também. Depois de derrubar o Vite à força, a aba já aberta pode dar erro 504 "Outdated Optimize Dep" até reiniciar o Vite; num `pnpm dev` limpo isso não acontece.
 
 ## Pendências humanas (fora do código)
