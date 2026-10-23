@@ -1,0 +1,27 @@
+{
+  "name": "app",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @app/shared build && pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm --filter @app/shared build && pnpm -r run typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @app/shared build && pnpm -r run test",
+    "test:e2e": "node -e \"console.log('e2e tests (Playwright) arrive in Phase 2')\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}
