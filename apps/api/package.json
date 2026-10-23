@@ -23,8 +23,13 @@
     "@nestjs/common": "^12.2.0",
     "@nestjs/core": "^12.2.0",
     "@nestjs/platform-express": "^12.2.0",
+    "@nestjs/platform-socket.io": "^12.2.0",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^12.2.0",
+    "helmet": "^8.3.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.10",
@@ -34,6 +39,7 @@
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",
     "jest": "^30.5.2",
+    "socket.io-client": "^4.8.4",
     "supertest": "^7.3.1",
     "ts-jest": "^29.4.15",
     "typescript": "~6.0.3"
