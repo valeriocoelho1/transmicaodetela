@@ -20,43 +20,60 @@ describe('HomePage', () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+    localStorage.clear();
   });
 
-  async function renderHome() {
+  async function render(path = '/') {
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={['/']}>
+        <MemoryRouter initialEntries={[path]}>
           <App />
         </MemoryRouter>,
       );
     });
   }
 
-  it('shows the title and "API: ok" when /api/health answers ok', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => Response.json({ status: 'ok' })),
-    );
-    await renderHome();
+  function createButton() {
+    return [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.startsWith('Criar sala'),
+    )!;
+  }
+
+  it('shows the title, the description, the IP notice and the create button', async () => {
+    await render();
     expect(container.querySelector('h1')?.textContent).toBe('Compartilhar tela');
-    expect(container.textContent).toContain('API: ok');
+    expect(container.textContent).toContain('Crie uma sala, compartilhe a tela do computador');
+    expect(container.textContent).toContain(
+      'o anfitrião e os espectadores podem ver o endereço IP uns dos outros.',
+    );
+    expect(createButton()).toBeDefined();
   });
 
-  it('shows "API: indisponível" when the response is invalid', async () => {
+  it('stores the host token and opens the host page after creating a room', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => Response.json({ status: 'down' })),
+      vi.fn(async () =>
+        Response.json({ roomId: 'aZ09_-aZ09_-', hostToken: 'x'.repeat(43) }, { status: 201 }),
+      ),
     );
-    await renderHome();
-    expect(container.textContent).toContain('API: indisponível');
+    await render();
+    await act(async () => createButton().click());
+    expect(localStorage.getItem('host-token:aZ09_-aZ09_-')).toBe('x'.repeat(43));
+    expect(container.querySelector('h1')?.textContent).toBe('Sua sala');
   });
 
-  it('shows "API: indisponível" when the request fails', async () => {
+  it('shows the rate limit message on 429', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => Promise.reject(new Error('offline'))),
+      vi.fn(async () => Response.json({}, { status: 429 })),
     );
-    await renderHome();
-    expect(container.textContent).toContain('API: indisponível');
+    await render();
+    await act(async () => createButton().click());
+    expect(container.textContent).toContain('Muitas tentativas. Aguarde um minuto.');
+  });
+
+  it('renders the not found page for unknown routes', async () => {
+    await render('/nope');
+    expect(container.textContent).toContain('Página não encontrada.');
   });
 });

@@ -2,6 +2,15 @@
   color-scheme: light dark;
   --bg: #ffffff;
   --fg: #1a1a1a;
+  --muted: #5c5c5c;
+  --surface: #f2f2f2;
+  --border: #cfcfcf;
+  --accent: #1f5fbf;
+  --accent-fg: #ffffff;
+  --live: #b3261e;
+  --warning: #8a5a00;
+  --danger: #b3261e;
+  --focus: #1f5fbf;
   font-family: system-ui, sans-serif;
   line-height: 1.5;
 }
@@ -10,17 +19,151 @@
   :root {
     --bg: #161616;
     --fg: #ececec;
+    --muted: #a8a8a8;
+    --surface: #242424;
+    --border: #444444;
+    --accent: #7aa7ff;
+    --accent-fg: #0d0d0d;
+    --live: #ff8a80;
+    --warning: #ffcc66;
+    --danger: #ff8a80;
+    --focus: #7aa7ff;
   }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-width: 360px;
   background: var(--bg);
   color: var(--fg);
 }
 
 .container {
-  max-width: 40rem;
+  max-width: 48rem;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 1rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input[type='text'] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.link-row,
+.actions,
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.notice {
+  padding: 0.75rem;
+  border-left: 4px solid var(--warning);
+  background: var(--surface);
+}
+
+.hint {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status-pill--live {
+  color: var(--live);
+}
+
+.status-pill--neutral {
+  color: var(--muted);
+}
+
+.status-pill--warning {
+  color: var(--warning);
+}
+
+.status-pill--error {
+  color: var(--danger);
+}
+
+.remote-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000000;
+  border-radius: 0.5rem;
+}
+
+video.preview {
+  display: block;
+  width: 12rem;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
 }

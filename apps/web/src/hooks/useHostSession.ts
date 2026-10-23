@@ -1,0 +1,196 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { EndReason } from '@app/shared';
+import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
+import { clearHostToken, getHostToken } from '../lib/host-token';
+import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
+import { HostBroadcaster } from '../lib/webrtc/host-broadcaster';
+
+export type HostState =
+  | 'connecting'
+  | 'forbidden'
+  | 'not_found'
+  | 'ready'
+  | 'starting'
+  | 'live'
+  | 'reconnecting'
+  | 'ended';
+
+export type HostEndedReason = EndReason | 'HOST_REPLACED';
+
+interface Session {
+  socket: SignalingSocket;
+  broadcaster: HostBroadcaster;
+}
+
+export function useHostSession(roomId: string) {
+  const [state, setStateValue] = useState<HostState>('connecting');
+  const [viewerCount, setViewerCount] = useState(0);
+  const [maxViewers, setMaxViewers] = useState<number | null>(null);
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const [audioMissing, setAudioMissing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasShared, setHasShared] = useState(false);
+  const [endedReason, setEndedReason] = useState<HostEndedReason | null>(null);
+
+  const stateRef = useRef<HostState>('connecting');
+  const sessionRef = useRef<Session | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const setState = useCallback((next: HostState) => {
+    stateRef.current = next;
+    setStateValue(next);
+  }, []);
+
+  const releaseStream = useCallback(() => {
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((track) => track.stop());
+    setPreviewStream(null);
+    setAudioMissing(false);
+  }, []);
+
+  const finish = useCallback(
+    (reason: HostEndedReason) => {
+      releaseStream();
+      sessionRef.current?.broadcaster.dispose();
+      setEndedReason(reason);
+      setState('ended');
+    },
+    [releaseStream, setState],
+  );
+
+  useEffect(() => {
+    const hostToken = getHostToken(roomId);
+    if (!hostToken) {
+      setState('forbidden');
+      return;
+    }
+    let cancelled = false;
+    setState('connecting');
+    const socket = createSignalingSocket();
+    const broadcaster = new HostBroadcaster({
+      offer: (viewerId, sdp) => socket.emit('signal:offer', { viewerId, sdp }),
+      ice: (viewerId, candidate) => socket.emit('signal:ice', { viewerId, candidate }),
+      peerFailed: () => undefined,
+    });
+    sessionRef.current = { socket, broadcaster };
+    const syncCount = () => setViewerCount(broadcaster.viewerCount);
+
+    socket.on('viewer:joined', ({ viewerId }) => {
+      broadcaster.addViewer(viewerId);
+      syncCount();
+    });
+    socket.on('viewer:left', ({ viewerId }) => {
+      broadcaster.removeViewer(viewerId);
+      syncCount();
+    });
+    socket.on('signal:answer', ({ viewerId, sdp }) => void broadcaster.handleAnswer(viewerId, sdp));
+    socket.on('signal:ice', (payload) => {
+      if ('viewerId' in payload) void broadcaster.handleIce(payload.viewerId, payload.candidate);
+    });
+    socket.on('room:host-replaced', () => {
+      if (!cancelled) finish('HOST_REPLACED');
+    });
+    socket.on('room:ended', ({ reason }) => {
+      if (!cancelled) finish(reason);
+    });
+    socket.on('disconnect', (reason) => {
+      if (cancelled || stateRef.current === 'ended') return;
+      if (reason === 'io server disconnect') finish('HOST_ENDED');
+      else setState('reconnecting');
+    });
+    socket.on('connect', async () => {
+      const ack = await socket.emitWithAck('host:join', { roomId, hostToken });
+      if (cancelled || stateRef.current === 'ended') return;
+      if (!ack.ok) {
+        setState('not_found');
+        socket.disconnect();
+        return;
+      }
+      broadcaster.setIceServers(ack.iceServers);
+      broadcaster.setViewers(ack.viewers);
+      setMaxViewers(ack.maxViewers);
+      syncCount();
+      if (streamRef.current) {
+        broadcaster.rebuildAll();
+        socket.emit('host:live', { live: true });
+        setState('live');
+      } else if (stateRef.current !== 'starting') {
+        setState('ready');
+      }
+    });
+    socket.connect();
+
+    return () => {
+      cancelled = true;
+      socket.removeAllListeners();
+      socket.disconnect();
+      broadcaster.dispose();
+      sessionRef.current = null;
+      const stream = streamRef.current;
+      streamRef.current = null;
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [roomId, finish, setState]);
+
+  const stopSharing = useCallback(() => {
+    if (!streamRef.current) return;
+    releaseStream();
+    const session = sessionRef.current;
+    session?.broadcaster.stop();
+    if (session?.socket.connected) session.socket.emit('host:live', { live: false });
+    if (stateRef.current === 'live') setState('ready');
+  }, [releaseStream, setState]);
+
+  const startSharing = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || stateRef.current !== 'ready') return;
+    setError(null);
+    setState('starting');
+    const stillStarting = () => stateRef.current === 'starting';
+    let stream: MediaStream;
+    try {
+      stream = await startDisplayCapture();
+    } catch (captureError) {
+      if (stillStarting()) {
+        setError(captureErrorMessage(captureError));
+        setState('ready');
+      }
+      return;
+    }
+    if (!stillStarting() || sessionRef.current !== session) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    streamRef.current = stream;
+    setPreviewStream(stream);
+    setHasShared(true);
+    setAudioMissing(stream.getAudioTracks().length === 0);
+    stream.getVideoTracks()[0]?.addEventListener('ended', stopSharing);
+    session.broadcaster.start(stream);
+    session.socket.emit('host:live', { live: true });
+    setState('live');
+  }, [setState, stopSharing]);
+
+  const endRoom = useCallback(() => {
+    const session = sessionRef.current;
+    session?.socket.emit('host:end');
+    clearHostToken(roomId);
+    finish('HOST_ENDED');
+    session?.socket.disconnect();
+  }, [finish, roomId]);
+
+  return {
+    state,
+    viewerCount,
+    maxViewers,
+    previewStream,
+    audioMissing,
+    error,
+    hasShared,
+    endedReason,
+    startSharing,
+    stopSharing,
+    endRoom,
+  };
+}

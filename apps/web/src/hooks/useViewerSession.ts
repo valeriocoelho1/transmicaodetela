@@ -1,0 +1,115 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type EndReason, ROOM_ID_REGEX } from '@app/shared';
+import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
+import { ViewerReceiver } from '../lib/webrtc/viewer-receiver';
+
+export type ViewerState =
+  | 'connecting'
+  | 'not_found'
+  | 'full'
+  | 'waiting'
+  | 'watching'
+  | 'reconnecting'
+  | 'failed'
+  | 'ended';
+
+interface Session {
+  socket: SignalingSocket;
+  receiver: ViewerReceiver;
+}
+
+export function useViewerSession(roomId: string) {
+  const validRoomId = ROOM_ID_REGEX.test(roomId);
+  const [state, setStateValue] = useState<ViewerState>(validRoomId ? 'connecting' : 'not_found');
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [hasAudio, setHasAudio] = useState(false);
+  const [endedReason, setEndedReason] = useState<EndReason | null>(null);
+  const stateRef = useRef<ViewerState>(state);
+  const sessionRef = useRef<Session | null>(null);
+
+  const setState = useCallback((next: ViewerState) => {
+    stateRef.current = next;
+    setStateValue(next);
+  }, []);
+
+  useEffect(() => {
+    if (!validRoomId) {
+      setState('not_found');
+      return;
+    }
+    let cancelled = false;
+    const isFinal = () => ['ended', 'not_found', 'full'].includes(stateRef.current) || cancelled;
+    setState('connecting');
+    const socket = createSignalingSocket();
+    const receiver = new ViewerReceiver({
+      answer: (sdp) => socket.emit('signal:answer', { sdp }),
+      ice: (candidate) => socket.emit('signal:ice', { candidate }),
+      stream: (next) => {
+        if (cancelled) return;
+        setStream(next);
+        setHasAudio(Boolean(next && next.getAudioTracks().length > 0));
+      },
+      connected: () => {
+        if (!isFinal()) setState('watching');
+      },
+      failed: () => {
+        if (!isFinal()) setState('failed');
+      },
+    });
+    sessionRef.current = { socket, receiver };
+
+    socket.on('room:status', ({ live }) => {
+      if (isFinal() || live) return;
+      receiver.close();
+      setState('waiting');
+    });
+    socket.on('signal:offer', ({ sdp }) => {
+      if (!isFinal()) void receiver.handleOffer(sdp);
+    });
+    socket.on('signal:ice', (payload) => {
+      if (!('viewerId' in payload)) void receiver.handleIce(payload.candidate);
+    });
+    socket.on('room:ended', ({ reason }) => {
+      if (cancelled) return;
+      receiver.close();
+      setEndedReason(reason);
+      setState('ended');
+    });
+    socket.on('disconnect', (reason) => {
+      if (isFinal()) return;
+      receiver.close();
+      if (reason !== 'io client disconnect') setState('reconnecting');
+    });
+    socket.on('connect', async () => {
+      const ack = await socket.emitWithAck('viewer:join', { roomId });
+      if (isFinal()) return;
+      if (!ack.ok) {
+        setState(ack.error === 'ROOM_FULL' ? 'full' : 'not_found');
+        socket.disconnect();
+        return;
+      }
+      receiver.setIceServers(ack.iceServers);
+      setState('waiting');
+    });
+    socket.connect();
+
+    return () => {
+      cancelled = true;
+      socket.removeAllListeners();
+      socket.disconnect();
+      receiver.close();
+      sessionRef.current = null;
+    };
+  }, [roomId, validRoomId, setState]);
+
+  const retry = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session) return;
+    session.receiver.close();
+    session.socket.disconnect();
+    setState('connecting');
+    session.socket.connect();
+  }, [setState]);
+
+  return { state, stream, hasAudio, endedReason, retry };
+}
