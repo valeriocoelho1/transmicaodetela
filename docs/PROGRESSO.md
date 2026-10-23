@@ -9,7 +9,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | 0 | Fundação | concluída com ressalvas (ver Decisões 3–4 e "O que não foi possível verificar") | `30cdcb5` |
 | 1 | API de salas e sinalização | concluída | `8ea08bf` |
 | 2 | Transmissão no navegador | concluída com ressalvas (teste manual com tela real pendente, ver abaixo) | `7b2c8ce` |
-| 3 | Internet: TURN e deploy | pendente | |
+| 3 | Internet: TURN e deploy | concluída com ressalvas (sem Docker na máquina: build das imagens e stack com Caddy/coturn **não** validados) | `68e194f` |
 | 4 | Endurecimento e entrega | pendente | |
 
 Status possíveis: `pendente`, `em andamento`, `concluída`, `concluída com ressalvas` (explique abaixo).
@@ -66,6 +66,24 @@ Para cada fase, liste o comando e o resultado real (passou, falhou, não executa
 
 **Teste manual que só uma pessoa pode fazer** (o e2e usa captura simulada): com `pnpm dev`, (1) criar sala em `http://localhost:5173`; (2) clicar "Compartilhar tela" e escolher uma **aba do navegador com vídeo e áudio**, marcando a opção de áudio; (3) abrir o link em outra janela; (4) conferir que o vídeo aparece e clicar "Ativar som"; (5) usar o botão do navegador "Parar compartilhamento" e conferir que o espectador volta a "Aguardando o anfitrião iniciar a transmissão." e o anfitrião volta a mostrar "Compartilhar novamente". Repetir em Firefox e Safari se possível.
 
+### Fase 3 (2026-10-23, Node 26.0.0, pnpm 12.15.0, macOS **sem Docker**)
+
+`docker`, Docker Desktop, OrbStack, Colima e Podman não estão instalados (`command not found`). Nenhum comando `docker` da seção "Verificação" pôde ser executado. O que foi validado sem Docker:
+
+| Verificação | Resultado |
+| --- | --- |
+| Estágios de build dos dois Dockerfiles, simulados numa cópia do repositório filtrada pelo `.dockerignore` (sem `e2e/`, `docs/`, `node_modules`, `dist`) | `pnpm install --frozen-lockfile --filter "@app/api..."` e `"@app/web..."` passaram; builds passaram; `apps/web/dist` gerado |
+| `pnpm --filter @app/api deploy --prod <dir>` (mesmo comando do Dockerfile) | `@app/shared` vem **injetado como cópia** (`dist` + `package.json`), não como link; nenhum pacote de desenvolvimento (`jest`, `typescript`, `@nestjs/cli`) na pasta |
+| API rodando a partir da pasta do `pnpm deploy` com `NODE_ENV=production` | sem `ALLOWED_ORIGINS`/`TURN_SECRET`: falha na partida com "Invalid configuration" listando as duas; com elas: `/api/health` ok e `POST /api/rooms` 201 |
+| `deploy/Caddyfile` | idêntico ao bloco de `05-infraestrutura.md` (`diff` vazio). Sintaxe não validada pelo `caddy` |
+| `docker-compose.prod.yml` | YAML válido (parser `js-yaml` já presente no `node_modules`); comparado ao esboço: só `image: coturn/coturn:4.18.0-r0` e a remoção de `--no-dtls`. As 5 variáveis interpoladas existem no `.env.example`. `docker compose config` **não** executado |
+| Flags do coturn | conferidos contra `README.turnserver`, `examples/etc/turnserver.conf` e a tabela `long_options` de `src/apps/relay/mainrelay.c` na tag `docker/4.18.0-r0` (a mesma da imagem `latest`, mesmo digest no Docker Hub): todos existem, exceto `--no-dtls` |
+| Tags de imagem no Docker Hub | `node:24-alpine`, `caddy:2-alpine` e `coturn/coturn:4.18.0-r0` existem |
+| `pnpm test:e2e` (modo padrão) | 6/6 |
+| `E2E_BASE_URL=http://localhost:5373 pnpm test:e2e` contra API do `pnpm deploy` em modo produção (`TRUST_PROXY=1`, TURN configurado) + build de produção do front em `vite preview` | 6/6; nenhum servidor local iniciado pelo Playwright; log da API sem segredo, SDP ou candidato |
+| `pnpm build`, `typecheck`, `lint`, `format:check`, `test` | exit 0 (shared 13, web 24, api 49) |
+| `.env` | ignorado (`git check-ignore`); histórico sem valor de segredo |
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -100,6 +118,11 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `getRoom()` existe em `lib/api.ts` (pedido pela tarefa) e tem teste, mas nenhuma tela o usa: o `ack` do `viewer:join` já informa sala inexistente ou cheia.
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
+- 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-23 (Fase 3) — Imagem do coturn fixada em `coturn/coturn:4.18.0-r0` (a versão cujos flags foram conferidos; hoje é o mesmo digest de `latest`).
+- 2026-10-23 (Fase 3) — Empacotamento da API: `pnpm --filter @app/api deploy --prod /out` no estágio de build (no pnpm 12 o pacote do workspace é injetado como cópia, sem flag extra); a imagem final copia só `package.json`, `node_modules` e `dist`, roda como `node`, com `HEALTHCHECK` via `fetch`.
+- 2026-10-23 (Fase 3) — Nas imagens, o pnpm é instalado com `npm install -g pnpm@12.15.0` (a versão de `packageManager`), não com corepack.
+- 2026-10-23 (Fase 3) — O Playwright lê `E2E_BASE_URL` de `e2e/support/target.ts`, que acessa `process.env` via `globalThis` para não exigir `@types/node` no pacote e2e. O cenário de sala cheia supõe `MAX_VIEWERS_PER_ROOM=2` na stack alvo.
 - 2026-10-23 (Fase 1) — Nos testes de integração cada cenário sobe o próprio app (porta aleatória, config própria), o que isola o contador do throttler e os limites.
 
 ## Placeholders pendentes
@@ -123,12 +146,16 @@ Itens que o Claude Code não conseguiu executar (por exemplo, Docker ausente, te
 - Fase 2: reconexão do anfitrião no navegador (queda do socket e `rebuildAll`) e o estado `failed` do espectador (10 s) não têm e2e nesta fase; a Fase 4 traz "recarregar anfitrião" e "timeout".
 - Fase 2: risco para a Fase 4: a suíte e2e roda numa única API e cada cenário cria uma sala; acima de 10 salas por minuto o limite de criação devolve 429. Hoje são 5.
 - Fase 2: o Vite registra `write EPIPE` no proxy quando um WebSocket fecha durante o e2e; não afeta os testes.
+- Fase 3: **toda a parte Docker**: `docker compose config`, `build`, `up -d`, `ps` com `api` `healthy`, `curl -k https://localhost/...` (health, HTML, fallback do SPA), logs do coturn ouvindo na 3478, `E2E_BASE_URL=https://localhost pnpm test:e2e` através do Caddy (WebSocket via proxy), `docker compose exec api id` sem root, `down`. Motivo: Docker não instalado. Para validar, instale Docker e rode a seção "Verificação" de `docs/fases/FASE-3-internet-turn-e-deploy.md` (ou peça ao Claude Code).
+- Fase 3: `allowRequest` aceitando `Origin` ausente (decisão da Fase 1) foi pensado para o polling de mesma origem atrás do Caddy, mas só será exercitado de verdade com a stack Docker.
 - Observação: se o processo da API cai, o `pnpm dev` (`pnpm -r --parallel`) encerra os outros processos também. Depois de derrubar o Vite à força, a aba já aberta pode dar erro 504 "Outdated Optimize Dep" até reiniciar o Vite; num `pnpm dev` limpo isso não acontece.
 
 ## Pendências humanas (fora do código)
 
 Consulte o guia de hospedagem, domínio e operação. Marque aqui o que já foi feito.
 
+- [ ] Instalar Docker localmente e rodar a "Verificação" da Fase 3 (não executada nesta máquina)
+- [ ] Teste manual com tela real da Fase 2 (roteiro acima)
 - [ ] Conta na nuvem criada e alerta de custo configurado
 - [ ] Domínio registrado
 - [ ] VM criada com IP fixo e portas liberadas
