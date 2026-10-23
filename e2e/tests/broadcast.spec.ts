@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectVideoPlaying, openHostRoom, openViewer, WAITING } from '../support/helpers';
+import { expectVideoPlaying, openHostRoom, openViewer, url, WAITING } from '../support/helpers';
 
 test('1. viewer who joins before the broadcast receives the video', async ({ browser }) => {
   const { host, link } = await openHostRoom(browser);
@@ -35,9 +35,9 @@ test('3. a third viewer sees that the room is full', async ({ browser }) => {
 });
 
 test('4. missing or malformed rooms show the not found message', async ({ browser }) => {
-  const missing = await openViewer(browser, 'http://localhost:5273/r/aaaaaaaaaaaa');
+  const missing = await openViewer(browser, url('/r/aaaaaaaaaaaa'));
   await expect(missing.getByText('Sala não encontrada ou já encerrada.')).toBeVisible();
-  const malformed = await openViewer(browser, 'http://localhost:5273/r/nao-existe');
+  const malformed = await openViewer(browser, url('/r/nao-existe'));
   await expect(malformed.getByText('Sala não encontrada ou já encerrada.')).toBeVisible();
 });
 

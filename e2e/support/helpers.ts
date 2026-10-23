@@ -1,14 +1,23 @@
-import { type Browser, expect, type Page } from '@playwright/test';
+import { type Browser, type BrowserContext, expect, type Page } from '@playwright/test';
 import { installFakeDisplayMedia } from './fake-display-media';
+import { BASE_URL, EXTERNAL_BASE_URL } from './target';
 
-export const WEB_ORIGIN = 'http://localhost:5273';
+function newContext(browser: Browser): Promise<BrowserContext> {
+  return browser.newContext({ ignoreHTTPSErrors: Boolean(EXTERNAL_BASE_URL) });
+}
+
+export function url(path: string): string {
+  return `${BASE_URL}${path}`;
+}
 
 export async function openHostRoom(browser: Browser): Promise<{ host: Page; link: string }> {
-  const context = await browser.newContext();
+  const context = await newContext(browser);
   await installFakeDisplayMedia(context);
-  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: WEB_ORIGIN });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+    origin: new URL(BASE_URL).origin,
+  });
   const host = await context.newPage();
-  await host.goto(`${WEB_ORIGIN}/`);
+  await host.goto(url('/'));
   await host.getByRole('button', { name: 'Criar sala' }).click();
   await expect(host.getByRole('heading', { name: 'Sua sala' })).toBeVisible();
   await expect(host.getByText('0 espectadores')).toBeVisible();
@@ -16,14 +25,15 @@ export async function openHostRoom(browser: Browser): Promise<{ host: Page; link
   await host.getByRole('button', { name: 'Copiar link' }).click();
   await expect(host.getByRole('button', { name: 'Link copiado' })).toBeVisible();
   const link = await host.evaluate(() => navigator.clipboard.readText());
-  expect(link).toMatch(/^http:\/\/localhost:5273\/r\/[A-Za-z0-9_-]{12}$/);
+  expect(link.startsWith(url('/r/'))).toBe(true);
+  expect(link).toMatch(/\/r\/[A-Za-z0-9_-]{12}$/);
   await expect(host.getByRole('textbox', { name: 'Link' })).toHaveValue(link);
   expect(host.url()).not.toContain('token');
   return { host, link };
 }
 
 export async function openViewer(browser: Browser, link: string): Promise<Page> {
-  const context = await browser.newContext();
+  const context = await newContext(browser);
   const viewer = await context.newPage();
   await viewer.goto(link);
   return viewer;
