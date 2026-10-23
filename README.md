@@ -28,7 +28,17 @@ pnpm dev
 | `pnpm format`       | Formata com Prettier                                                |
 | `pnpm format:check` | Confere a formatação                                                |
 | `pnpm test`         | Testes unitários e de integração (sem e2e)                          |
-| `pnpm test:e2e`     | Testes Playwright (a partir da Fase 2)                              |
+| `pnpm test:e2e`     | Testes Playwright em Chromium (API na 3100, web na 5273)            |
+
+## Testes e2e
+
+Na primeira vez, instale o Chromium do Playwright:
+
+```bash
+pnpm --filter @app/e2e exec playwright install chromium
+```
+
+Depois rode `pnpm test:e2e`. A suíte sobe a própria API (porta 3100, até 2 espectadores por sala) e o site (porta 5273) e simula a captura de tela com um `canvas`.
 
 ## Estrutura
 
@@ -36,6 +46,7 @@ pnpm dev
 apps/api/          API NestJS (@app/api)
 apps/web/          site React + Vite (@app/web)
 packages/shared/   schemas e tipos compartilhados (@app/shared)
+e2e/               testes Playwright (@app/e2e)
 docs/              especificação, arquitetura e fases
 ```
 
