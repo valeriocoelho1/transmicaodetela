@@ -10,7 +10,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | 1 | API de salas e sinalização | concluída | `8ea08bf` |
 | 2 | Transmissão no navegador | concluída com ressalvas (teste manual com tela real pendente, ver abaixo) | `7b2c8ce` |
 | 3 | Internet: TURN e deploy | concluída (validação local com Docker feita em 2026-10-23; TURN em rede real é pendência humana) | `bc72f24` |
-| 4 | Endurecimento e entrega | pendente | |
+| 4 | Endurecimento e entrega | concluída (tag `v0.1.0`) | `0348db4` |
 
 Status possíveis: `pendente`, `em andamento`, `concluída`, `concluída com ressalvas` (explique abaixo).
 
@@ -105,6 +105,20 @@ Executada a seção "Verificação" completa com `.env` temporário (`DOMAIN=loc
 | Log da API | 0 ocorrências do segredo TURN, de SDP e de candidatos |
 | `docker compose ... down` e `rm .env` | containers e rede removidos; `.env` apagado; portas 80/443 livres. Os volumes `caddy_data`/`caddy_config` ficaram (o `down` não os remove) |
 
+### Fase 4 (2026-10-23, Node 26.0.0, pnpm 12.15.0, Docker Desktop 29.9.2, macOS)
+
+| Comando | Resultado |
+| --- | --- |
+| Testes do checklist de segurança (`apps/api/test/security.spec.ts`, 6 testes) | passam: origem não permitida recusada (inclusive `https://allowed.test.evil.test`); espectador não produz efeito com `signal:offer`, `host:live` e `host:end`; 3 tokens errados recusados e o `GET /api/rooms/:id` só tem `roomId`, `live`, `viewerCount`, `maxViewers`; 10 payloads estranhos (null, número, texto, array, `{ $gt }`, `__proto__` via `JSON.parse`, SDP de 40 KB, candidato de 3 KB, `viewerId` com `../`) em todos os eventos: acks `INVALID_PAYLOAD`, sockets continuam conectados, evento válido seguinte respondido, nenhum protótipo poluído; mensagem acima de 64 KB desconecta só aquele socket; estouro do limite de eventos desconecta (`io server disconnect`) |
+| `pnpm test` | shared 13, web 24, api 55 |
+| E2E extras (`e2e/tests/resilience.spec.ts`), servidor de e2e com `ROOM_HOST_GRACE_MS=3000` e `SWEEP_INTERVAL_MS=500` | 7 recarregar anfitrião (sala continua, espectador vê "Aguardando…", vídeo volta); 8 anfitrião fecha a aba ("O anfitrião saiu e a sala foi encerrada." em ~4 s); 9 segunda aba ("Esta sala foi aberta em outra aba."); 10 sem token ("Você não tem acesso de anfitrião a esta sala."); 11 espectador offline e de volta (`context.setOffline`): "Conexão perdida. Reconectando…" após ~45 s e vídeo de volta ~1 s depois de voltar a rede |
+| `pnpm test:e2e` | 11/11 em ~1,2 min (com contextos fechados após cada teste; antes disso a suíte levava o dobro) |
+| Limpeza | removidos `@types/express` (não usado; typecheck, build e testes passam sem ele), o schema `apiErrorResponse` (não usado) e os tons `neutral`/`error` do `StatusPill` (não usados). `grep`: 0 `console.*`/`debugger`; nenhuma chamada de log com `sdp`, `candidate`, `token` ou `secret` |
+| `pnpm audit` | **No known vulnerabilities found** (0 info/low/moderate/high/critical; 126 dependências de produção, 647 de desenvolvimento, 787 no total). Sem `--force`, sem `overrides` |
+| README final | o que é, arquitetura, requisitos, instalação, scripts, testes (com instalação do Chromium), tabela de variáveis, limites do MVP, produção, Fora do MVP |
+| Clone limpo (pasta temporária, removida depois) | `pnpm install --frozen-lockfile`, `build`, `typecheck`, `lint`, `format:check`, `test` (13/24/55) e `test:e2e` (11/11): exit 0. `docker compose -f docker-compose.prod.yml config`: exit 0 (só avisos de variáveis não definidas, porque o clone não tem `.env`) |
+| Tag | `v0.1.0` anotada, local, sem push |
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -140,6 +154,10 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-23 (Fase 4) — O cenário e2e "anfitrião sem token" usa um `roomId` válido qualquer, sem criar sala: a página recusa antes de qualquer rede. Assim a suíte cria 9 salas por rodada, abaixo do limite de 10 por minuto.
+- 2026-10-23 (Fase 4) — O e2e de queda de rede do espectador ficou na suíte: `context.setOffline` não fecha o WebSocket aberto, então a queda só é percebida pelo timeout de ping padrão do Socket.IO (25 s + 20 s). O teste tem timeout próprio de 2 min. Nenhum gancho de teste foi colocado no produto e os tempos de ping do Socket.IO não foram alterados (seria mudança de comportamento).
+- 2026-10-23 (Fase 4) — Os helpers do e2e fecham todos os contextos de navegador após cada teste. Sem isso, as transmissões dos cenários anteriores continuavam rodando e deixavam os seguintes lentos.
+- 2026-10-23 (Fase 4) — `peerFailed` do `HostBroadcaster` continua na interface (o doc pede "avisar a UI"), mas o hook do anfitrião não mostra nada: o peer que falha é fechado e o espectador recebe nova oferta ao reconectar.
 - 2026-10-23 (Fase 3, validação) — **coturn chamado direto (`entrypoint: ['turnserver']`).** O `docker-entrypoint.sh` da imagem faz `eval "echo $i"` em cada argumento; para `-n` isso vira `echo -n`, que imprime vazio. O flag "não usar arquivo de configuração" se perdia e o coturn recebia um argumento vazio (`Unknown argument:`). Também removido `--no-cli`: no 4.18 é obsoleto (gera `ERROR`) e a CLI já vem desligada por padrão (`use_cli = false`). Nenhum `ERROR` depois da correção.
 - 2026-10-23 (Fase 3, validação) — No build das imagens o npm 11 avisa que não rodou os scripts de instalação do pacote `pnpm` (`allowScripts`); o pnpm funcionou e o build terminou. Sem ação.
 - 2026-10-23 (Fase 3) — Imagem do coturn fixada em `coturn/coturn:4.18.0-r0` (a versão cujos flags foram conferidos; hoje é o mesmo digest de `latest`).
@@ -171,6 +189,8 @@ Itens que o Claude Code não conseguiu executar (por exemplo, Docker ausente, te
 - Fase 2: o Vite registra `write EPIPE` no proxy quando um WebSocket fecha durante o e2e; não afeta os testes.
 - Fase 3: ~~parte Docker não validada~~ — validada depois que o Docker foi instalado (tabela acima).
 - Fase 3: o relay do TURN não foi exercitado (nenhuma alocação TURN real): no Docker Desktop do macOS o `network_mode: host` roda dentro da VM do Docker, e a validação do TURN entre redes é pendência humana (guia, seção 8).
+- Fase 4: o espectador numa rede que cai em silêncio (sem fechar a conexão) só mostra "Conexão perdida. Reconectando…" depois de ~45 s (ping padrão do Socket.IO). É comportamento observado, não defeito; reduzir esse tempo seria mudança de produto.
+- Fase 4: nenhum navegador além do Chromium foi testado; nenhum teste com tela, áudio ou rede reais (roteiro manual abaixo).
 - Observação: se o processo da API cai, o `pnpm dev` (`pnpm -r --parallel`) encerra os outros processos também. Depois de derrubar o Vite à força, a aba já aberta pode dar erro 504 "Outdated Optimize Dep" até reiniciar o Vite; num `pnpm dev` limpo isso não acontece.
 
 ## Pendências humanas (fora do código)
@@ -187,3 +207,16 @@ Consulte o guia de hospedagem, domínio e operação. Marque aqui o que já foi 
 - [ ] Primeiro deploy feito
 - [ ] TURN validado com a página de teste de ICE
 - [ ] Teste real: anfitrião em uma rede, espectador no 4G
+
+### Teste manual guiado (depois do deploy; da Fase 4)
+
+- [ ] Anfitrião no Chrome (ou Edge) em computador, espectador no celular com **4G** (não Wi-Fi): o vídeo aparece em poucos segundos.
+- [ ] Mesmo teste com anfitrião no Firefox e no Safari, se tiver acesso.
+- [ ] Compartilhar uma **aba** com áudio: o espectador ouve ao ativar o som.
+- [ ] Compartilhar a **tela inteira**: o vídeo aparece; anotar se o áudio chega (depende do sistema).
+- [ ] Clicar em "Parar compartilhamento" no navegador: o espectador volta a "Aguardando".
+- [ ] Recarregar a página do anfitrião: a sala continua e ele consegue compartilhar de novo.
+- [ ] Fechar a aba do anfitrião e esperar mais de 60 segundos: os espectadores veem a sala encerrada.
+- [ ] Entrar com 6 espectadores: o sexto vê "A sala está cheia".
+- [ ] Abrir o site por `http://`: redireciona para HTTPS.
+- [ ] Abrir o link em janela anônima: funciona sem login.
