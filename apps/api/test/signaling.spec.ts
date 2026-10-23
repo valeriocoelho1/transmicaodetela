@@ -1,0 +1,301 @@
+import type { HostJoinAck, IceCandidate, ViewerJoinAck } from '@app/shared';
+import request from 'supertest';
+import {
+  type ClientSocket,
+  recordEvents,
+  startApp,
+  type TestApp,
+  waitForEvent,
+  waitUntil,
+} from './helpers';
+
+const offerSdp = { type: 'offer' as const, sdp: 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=offer\r\n' };
+const answerSdp = {
+  type: 'answer' as const,
+  sdp: 'v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=answer\r\n',
+};
+const candidate: IceCandidate = {
+  candidate: 'candidate:1 1 udp 2122260223 192.0.2.10 54400 typ host',
+  sdpMid: '0',
+  sdpMLineIndex: 0,
+  usernameFragment: 'abcd',
+};
+
+describe('SignalingGateway', () => {
+  let t: TestApp;
+
+  afterEach(async () => {
+    await t.close();
+  });
+
+  async function joinHost(roomId: string, hostToken: string) {
+    const host = await t.connect();
+    const events = recordEvents(host);
+    const ack: HostJoinAck = await host.emitWithAck('host:join', { roomId, hostToken });
+    return { host, events, ack };
+  }
+
+  async function joinViewer(roomId: string) {
+    const viewer = await t.connect();
+    const events = recordEvents(viewer);
+    const ack: ViewerJoinAck = await viewer.emitWithAck('viewer:join', { roomId });
+    if (!ack.ok) throw new Error(`viewer:join failed: ${ack.error}`);
+    return { viewer, events, viewerId: ack.viewerId, ack };
+  }
+
+  async function roomStatus(roomId: string) {
+    return request(t.app.getHttpServer()).get(`/api/rooms/${roomId}`);
+  }
+
+  it('3. host:join with a valid token acks with iceServers and no viewers', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { ack } = await joinHost(room.roomId, room.hostToken);
+    expect(ack).toEqual({
+      ok: true,
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+      viewers: [],
+      maxViewers: 5,
+    });
+  });
+
+  it('4. host:join rejects a wrong token, a missing room and an invalid payload', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const socket = await t.connect();
+    const wrongToken = room.hostToken.replace(/^./, (c) => (c === 'a' ? 'b' : 'a'));
+    expect(
+      await socket.emitWithAck('host:join', { roomId: room.roomId, hostToken: wrongToken }),
+    ).toEqual({ ok: false, error: 'INVALID_TOKEN' });
+    expect(
+      await socket.emitWithAck('host:join', { roomId: 'aaaaaaaaaaaa', hostToken: room.hostToken }),
+    ).toEqual({ ok: false, error: 'ROOM_NOT_FOUND' });
+    expect(await socket.emitWithAck('host:join', { roomId: room.roomId } as never)).toEqual({
+      ok: false,
+      error: 'INVALID_PAYLOAD',
+    });
+    expect(await socket.emitWithAck('viewer:join', { roomId: 42 } as never)).toEqual({
+      ok: false,
+      error: 'INVALID_PAYLOAD',
+    });
+    expect(socket.connected).toBe(true);
+  });
+
+  it('5. viewer:join acks with live=false and the host gets viewer:joined', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const joined = waitForEvent<{ viewerId: string }>(host, 'viewer:joined');
+    const { ack, viewerId } = await joinViewer(room.roomId);
+    expect(ack).toEqual({
+      ok: true,
+      viewerId,
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+      live: false,
+    });
+    expect(await joined).toEqual({ viewerId });
+    expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
+  });
+
+  it('6. a full room answers ROOM_FULL', async () => {
+    t = await startApp({ MAX_VIEWERS_PER_ROOM: '2' });
+    const room = await t.createRoom();
+    await joinViewer(room.roomId);
+    await joinViewer(room.roomId);
+    const third = await t.connect();
+    expect(await third.emitWithAck('viewer:join', { roomId: room.roomId })).toEqual({
+      ok: false,
+      error: 'ROOM_FULL',
+    });
+  });
+
+  it('7. relays offer, answer and ICE in both directions without logging them', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId } = await joinViewer(room.roomId);
+
+    const offer = waitForEvent(viewer, 'signal:offer');
+    host.emit('signal:offer', { viewerId, sdp: offerSdp });
+    expect(await offer).toEqual({ sdp: offerSdp });
+
+    const answer = waitForEvent(host, 'signal:answer');
+    viewer.emit('signal:answer', { sdp: answerSdp });
+    expect(await answer).toEqual({ viewerId, sdp: answerSdp });
+
+    const iceAtViewer = waitForEvent(viewer, 'signal:ice');
+    host.emit('signal:ice', { viewerId, candidate });
+    expect(await iceAtViewer).toEqual({ candidate });
+
+    const iceAtHost = waitForEvent(host, 'signal:ice');
+    viewer.emit('signal:ice', { candidate });
+    expect(await iceAtHost).toEqual({ viewerId, candidate });
+
+    const logs = t.logger.lines.join('\n');
+    expect(logs).toContain('viewer joined');
+    for (const secret of [offerSdp.sdp, answerSdp.sdp, candidate.candidate, room.hostToken]) {
+      expect(logs).not.toContain(secret);
+    }
+    expect(logs).not.toContain('192.0.2.10');
+    expect(logs).not.toContain(room.roomId);
+  });
+
+  it('8. ignores events sent by the wrong role and offers to unknown viewers', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host, events: hostEvents } = await joinHost(room.roomId, room.hostToken);
+    const a = await joinViewer(room.roomId);
+    const b = await joinViewer(room.roomId);
+
+    a.viewer.emit('signal:offer', { viewerId: b.viewerId, sdp: offerSdp });
+    a.viewer.emit('host:live', { live: true });
+    a.viewer.emit('host:end');
+    // A viewer cannot target another viewer: the server forwards to the host with A's own id.
+    a.viewer.emit('signal:ice', { viewerId: b.viewerId, candidate } as never);
+    host.emit('signal:answer', { sdp: answerSdp });
+    host.emit('signal:offer', { viewerId: '3b241101-e2bb-4255-8caf-4136c566a962', sdp: offerSdp });
+
+    const answerFromA = waitForEvent(host, 'signal:answer');
+    a.viewer.emit('signal:answer', { sdp: answerSdp });
+    expect(await answerFromA).toEqual({ viewerId: a.viewerId, sdp: answerSdp });
+
+    const offerToB = waitForEvent(b.viewer, 'signal:offer');
+    host.emit('signal:offer', { viewerId: b.viewerId, sdp: offerSdp });
+    await offerToB;
+
+    expect(hostEvents).toEqual([
+      ['viewer:joined', { viewerId: a.viewerId }],
+      ['viewer:joined', { viewerId: b.viewerId }],
+      ['signal:ice', { viewerId: a.viewerId, candidate }],
+      ['signal:answer', { viewerId: a.viewerId, sdp: answerSdp }],
+    ]);
+    expect(b.events).toEqual([['signal:offer', { sdp: offerSdp }]]);
+    expect(a.events).toEqual([]);
+    expect((await roomStatus(room.roomId)).status).toBe(200);
+  });
+
+  it('9. host:live reaches viewers as room:status and late viewers get the live flag', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer } = await joinViewer(room.roomId);
+
+    const on = waitForEvent(viewer, 'room:status');
+    host.emit('host:live', { live: true });
+    expect(await on).toEqual({ live: true });
+
+    const late = await joinViewer(room.roomId);
+    expect(late.ack.ok && late.ack.live).toBe(true);
+
+    const off = waitForEvent(viewer, 'room:status');
+    host.emit('host:live', { live: false });
+    expect(await off).toEqual({ live: false });
+  });
+
+  it('10. a viewer disconnecting sends viewer:left to the host', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId } = await joinViewer(room.roomId);
+    const left = waitForEvent(host, 'viewer:left');
+    viewer.disconnect();
+    expect(await left).toEqual({ viewerId });
+    expect((await roomStatus(room.roomId)).body.viewerCount).toBe(0);
+  });
+
+  it('11. host disconnect: live=false, then HOST_TIMEOUT after the grace period', async () => {
+    t = await startApp({ ROOM_HOST_GRACE_MS: '200', SWEEP_INTERVAL_MS: '50' });
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer } = await joinViewer(room.roomId);
+    host.emit('host:live', { live: true });
+    await waitForEvent(viewer, 'room:status');
+
+    const status = waitForEvent(viewer, 'room:status');
+    const ended = waitForEvent(viewer, 'room:ended');
+    const disconnected = waitForEvent(viewer, 'disconnect');
+    host.disconnect();
+    expect(await status).toEqual({ live: false });
+    expect(await ended).toEqual({ reason: 'HOST_TIMEOUT' });
+    await disconnected;
+    expect((await roomStatus(room.roomId)).status).toBe(404);
+  });
+
+  it('12. a host reconnecting within the grace period keeps the room', async () => {
+    t = await startApp({ ROOM_HOST_GRACE_MS: '400', SWEEP_INTERVAL_MS: '50' });
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId, events } = await joinViewer(room.roomId);
+    const status = waitForEvent(viewer, 'room:status');
+    host.disconnect();
+    await status;
+
+    const again = await joinHost(room.roomId, room.hostToken);
+    expect(again.ack).toMatchObject({ ok: true, viewers: [viewerId] });
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect((await roomStatus(room.roomId)).status).toBe(200);
+    expect(events.map(([event]) => event)).not.toContain('room:ended');
+  });
+
+  it('13. host:end sends HOST_ENDED to viewers and removes the room', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer } = await joinViewer(room.roomId);
+    const ended = waitForEvent(viewer, 'room:ended');
+    const disconnected = waitForEvent(viewer, 'disconnect');
+    host.emit('host:end');
+    expect(await ended).toEqual({ reason: 'HOST_ENDED' });
+    await disconnected;
+    expect((await roomStatus(room.roomId)).status).toBe(404);
+  });
+
+  it('14. a second host:join with the same token replaces the first host', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const first = await joinHost(room.roomId, room.hostToken);
+    const replaced = waitForEvent(first.host, 'room:host-replaced');
+    const disconnected = waitForEvent(first.host, 'disconnect');
+    const second = await joinHost(room.roomId, room.hostToken);
+    expect(second.ack.ok).toBe(true);
+    await replaced;
+    await disconnected;
+
+    const { viewer } = await joinViewer(room.roomId);
+    const status = waitForEvent(viewer, 'room:status');
+    second.host.emit('host:live', { live: true });
+    expect(await status).toEqual({ live: true });
+  });
+
+  it('15. refuses a connection from an origin that is not allowed', async () => {
+    t = await startApp({ ALLOWED_ORIGINS: 'http://allowed.test' });
+    await expect(t.connect({ origin: 'http://evil.test' })).rejects.toThrow();
+    const ok = await t.connect({ origin: 'http://allowed.test' });
+    expect(ok.connected).toBe(true);
+  });
+
+  it('16. disconnects a socket that exceeds the event rate limit', async () => {
+    t = await startApp({ SOCKET_RATE_LIMIT_EVENTS: '5', SOCKET_RATE_LIMIT_WINDOW_MS: '10000' });
+    const socket: ClientSocket = await t.connect();
+    const disconnected = waitForEvent(socket, 'disconnect');
+    for (let i = 0; i < 10; i++) socket.emit('host:live', { live: true });
+    expect(await disconnected).toBe('io server disconnect');
+  });
+
+  it('17. removes a room whose host never joined after ROOM_UNUSED_TTL_MS', async () => {
+    t = await startApp({ ROOM_UNUSED_TTL_MS: '150', SWEEP_INTERVAL_MS: '50' });
+    const room = await t.createRoom();
+    expect((await roomStatus(room.roomId)).status).toBe(200);
+    await waitUntil(async () => (await roomStatus(room.roomId)).status === 404);
+  });
+
+  it('drops an oversized message without crashing', async () => {
+    t = await startApp();
+    const socket = await t.connect();
+    const disconnected = waitForEvent(socket, 'disconnect');
+    socket.emit('signal:answer', { sdp: { type: 'answer', sdp: 'a'.repeat(70_000) } });
+    await disconnected;
+    const health = await request(t.app.getHttpServer()).get('/api/health');
+    expect(health.status).toBe(200);
+  });
+});

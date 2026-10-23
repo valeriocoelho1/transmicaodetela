@@ -1,31 +1,29 @@
-import 'reflect-metadata';
-import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import { healthResponse } from '@app/shared';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
+import { startApp, type TestApp } from './helpers';
 
 describe('GET /api/health', () => {
-  let app: INestApplication;
+  let t: TestApp;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    configureApp(app);
-    await app.init();
+    t = await startApp();
   });
 
   afterAll(async () => {
-    await app.close();
+    await t.close();
   });
 
   it('returns { status: "ok" }', async () => {
-    const res = await request(app.getHttpServer()).get('/api/health').expect(200);
+    const res = await request(t.app.getHttpServer()).get('/api/health').expect(200);
     expect(healthResponse.parse(res.body)).toEqual({ status: 'ok' });
   });
 
   it('is only served under the /api prefix', async () => {
-    await request(app.getHttpServer()).get('/health').expect(404);
+    await request(t.app.getHttpServer()).get('/health').expect(404);
+  });
+
+  it('sends helmet security headers', async () => {
+    const res = await request(t.app.getHttpServer()).get('/api/health');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
 });
