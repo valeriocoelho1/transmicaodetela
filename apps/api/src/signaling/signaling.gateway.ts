@@ -150,7 +150,7 @@ export class SignalingGateway
     if (room?.hostSocketId) {
       this.server.to(room.hostSocketId).emit('viewer:joined', { viewerId: added.viewerId });
     }
-    this.logger.log(`Room ${shortId(roomId)} viewer joined (${room?.viewers.size ?? 0} viewers)`);
+    this.logger.log(`Room ${shortId(roomId)} viewer joined (viewers: ${room?.viewers.size ?? 0})`);
     return {
       ok: true,
       viewerId: added.viewerId,
@@ -241,7 +241,7 @@ export class SignalingGateway
     } else if (role === 'viewer' && viewerId && this.rooms.removeViewer(roomId, viewerId)) {
       const room = this.rooms.get(roomId);
       if (room?.hostSocketId) this.server.to(room.hostSocketId).emit('viewer:left', { viewerId });
-      this.logger.log(`Room ${shortId(roomId)} viewer left (${room?.viewers.size ?? 0} viewers)`);
+      this.logger.log(`Room ${shortId(roomId)} viewer left (viewers: ${room?.viewers.size ?? 0})`);
     }
   }
 
