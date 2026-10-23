@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm --filter @app/shared build && pnpm -r run test",
-    "test:e2e": "node -e \"console.log('e2e tests (Playwright) arrive in Phase 2')\""
+    "test:e2e": "pnpm --filter @app/e2e test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
