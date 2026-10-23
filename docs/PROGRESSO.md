@@ -9,7 +9,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | 0 | Fundação | concluída com ressalvas (ver Decisões 3–4 e "O que não foi possível verificar") | `30cdcb5` |
 | 1 | API de salas e sinalização | concluída | `8ea08bf` |
 | 2 | Transmissão no navegador | concluída com ressalvas (teste manual com tela real pendente, ver abaixo) | `7b2c8ce` |
-| 3 | Internet: TURN e deploy | concluída com ressalvas (sem Docker na máquina: build das imagens e stack com Caddy/coturn **não** validados) | `68e194f` |
+| 3 | Internet: TURN e deploy | concluída (validação local com Docker feita em 2026-10-23; TURN em rede real é pendência humana) | `bc72f24` |
 | 4 | Endurecimento e entrega | pendente | |
 
 Status possíveis: `pendente`, `em andamento`, `concluída`, `concluída com ressalvas` (explique abaixo).
@@ -84,6 +84,27 @@ Para cada fase, liste o comando e o resultado real (passou, falhou, não executa
 | `pnpm build`, `typecheck`, `lint`, `format:check`, `test` | exit 0 (shared 13, web 24, api 49) |
 | `.env` | ignorado (`git check-ignore`); histórico sem valor de segredo |
 
+### Fase 3, validação com Docker (2026-10-23, Docker Desktop 29.9.2, Compose v5.6.1)
+
+Executada a seção "Verificação" completa com `.env` temporário (`DOMAIN=localhost`, `TURN_SECRET` de teste, `PUBLIC_IP`/`PRIVATE_IP=127.0.0.1`, `MAX_VIEWERS_PER_ROOM=2`), ignorado pelo git e apagado no fim.
+
+| Comando | Resultado |
+| --- | --- |
+| `docker compose -f docker-compose.prod.yml config` | exit 0 |
+| `docker compose ... build` | exit 0; `transmicaodetela-api` 281 MB, `transmicaodetela-web` 89,4 MB |
+| `docker compose ... up -d` + `ps` | `api` running **(healthy)** após ~26 s, `web` e `coturn` running, 0 reinícios |
+| `curl -k https://localhost/api/health` | `{"status":"ok"}` |
+| `curl -k https://localhost/` | `index.html` do front (`<title>Compartilhar tela</title>`) |
+| `curl -k ... https://localhost/r/AAAAAAAAAAAA` | 200, mesmo `index.html` (fallback do SPA) |
+| Cabeçalhos | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy: display-capture=(self)`, `alt-svc: h3`; `http://localhost/` → 308 para HTTPS |
+| `docker compose ... logs coturn` | **primeira subida:** `ERROR no-cli option is deprecated` e `ERROR CONFIG: Unknown argument:` (vazio) — ver Decisões. **Depois da correção:** nenhum `ERROR`, processo `turnserver -n ...`, 80 sockets na porta 3478 (`/proc/net/udp` e `tcp`), 0 reinícios. Avisos restantes esperados: TLS/DTLS desligados (certificado ausente), `--use-auth-secret` sobrepõe `--lt-cred-mech`, sem endereço de escuta explícito, pid file |
+| `E2E_BASE_URL=https://localhost pnpm test:e2e` | **6/6** pelo Caddy |
+| Upgrade WebSocket pelo Caddy (`/socket.io/?transport=websocket`) | 101 com `Origin: https://localhost`; 400 com `Origin: http://evil.test`; polling de mesma origem sem `Origin`: 200 |
+| Limite de criação atrás do Caddy com `TRUST_PROXY=1` | 12 `POST` com `X-Forwarded-For` forjado diferente em cada um: 201×5 e depois 429×7 (o forjado não fura o limite) |
+| `docker compose exec api id` | `uid=1000(node) gid=1000(node)` (não root) |
+| Log da API | 0 ocorrências do segredo TURN, de SDP e de candidatos |
+| `docker compose ... down` e `rm .env` | containers e rede removidos; `.env` apagado; portas 80/443 livres. Os volumes `caddy_data`/`caddy_config` ficaram (o `down` não os remove) |
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -119,6 +140,8 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-23 (Fase 3, validação) — **coturn chamado direto (`entrypoint: ['turnserver']`).** O `docker-entrypoint.sh` da imagem faz `eval "echo $i"` em cada argumento; para `-n` isso vira `echo -n`, que imprime vazio. O flag "não usar arquivo de configuração" se perdia e o coturn recebia um argumento vazio (`Unknown argument:`). Também removido `--no-cli`: no 4.18 é obsoleto (gera `ERROR`) e a CLI já vem desligada por padrão (`use_cli = false`). Nenhum `ERROR` depois da correção.
+- 2026-10-23 (Fase 3, validação) — No build das imagens o npm 11 avisa que não rodou os scripts de instalação do pacote `pnpm` (`allowScripts`); o pnpm funcionou e o build terminou. Sem ação.
 - 2026-10-23 (Fase 3) — Imagem do coturn fixada em `coturn/coturn:4.18.0-r0` (a versão cujos flags foram conferidos; hoje é o mesmo digest de `latest`).
 - 2026-10-23 (Fase 3) — Empacotamento da API: `pnpm --filter @app/api deploy --prod /out` no estágio de build (no pnpm 12 o pacote do workspace é injetado como cópia, sem flag extra); a imagem final copia só `package.json`, `node_modules` e `dist`, roda como `node`, com `HEALTHCHECK` via `fetch`.
 - 2026-10-23 (Fase 3) — Nas imagens, o pnpm é instalado com `npm install -g pnpm@12.15.0` (a versão de `packageManager`), não com corepack.
@@ -146,15 +169,15 @@ Itens que o Claude Code não conseguiu executar (por exemplo, Docker ausente, te
 - Fase 2: reconexão do anfitrião no navegador (queda do socket e `rebuildAll`) e o estado `failed` do espectador (10 s) não têm e2e nesta fase; a Fase 4 traz "recarregar anfitrião" e "timeout".
 - Fase 2: risco para a Fase 4: a suíte e2e roda numa única API e cada cenário cria uma sala; acima de 10 salas por minuto o limite de criação devolve 429. Hoje são 5.
 - Fase 2: o Vite registra `write EPIPE` no proxy quando um WebSocket fecha durante o e2e; não afeta os testes.
-- Fase 3: **toda a parte Docker**: `docker compose config`, `build`, `up -d`, `ps` com `api` `healthy`, `curl -k https://localhost/...` (health, HTML, fallback do SPA), logs do coturn ouvindo na 3478, `E2E_BASE_URL=https://localhost pnpm test:e2e` através do Caddy (WebSocket via proxy), `docker compose exec api id` sem root, `down`. Motivo: Docker não instalado. Para validar, instale Docker e rode a seção "Verificação" de `docs/fases/FASE-3-internet-turn-e-deploy.md` (ou peça ao Claude Code).
-- Fase 3: `allowRequest` aceitando `Origin` ausente (decisão da Fase 1) foi pensado para o polling de mesma origem atrás do Caddy, mas só será exercitado de verdade com a stack Docker.
+- Fase 3: ~~parte Docker não validada~~ — validada depois que o Docker foi instalado (tabela acima).
+- Fase 3: o relay do TURN não foi exercitado (nenhuma alocação TURN real): no Docker Desktop do macOS o `network_mode: host` roda dentro da VM do Docker, e a validação do TURN entre redes é pendência humana (guia, seção 8).
 - Observação: se o processo da API cai, o `pnpm dev` (`pnpm -r --parallel`) encerra os outros processos também. Depois de derrubar o Vite à força, a aba já aberta pode dar erro 504 "Outdated Optimize Dep" até reiniciar o Vite; num `pnpm dev` limpo isso não acontece.
 
 ## Pendências humanas (fora do código)
 
 Consulte o guia de hospedagem, domínio e operação. Marque aqui o que já foi feito.
 
-- [ ] Instalar Docker localmente e rodar a "Verificação" da Fase 3 (não executada nesta máquina)
+- [x] Instalar Docker localmente e rodar a "Verificação" da Fase 3
 - [ ] Teste manual com tela real da Fase 2 (roteiro acima)
 - [ ] Conta na nuvem criada e alerta de custo configurado
 - [ ] Domínio registrado
