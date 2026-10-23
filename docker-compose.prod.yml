@@ -1,0 +1,89 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      TRUST_PROXY: '1'
+      ALLOWED_ORIGINS: https://${DOMAIN}
+      STUN_URLS: stun:${DOMAIN}:3478
+      TURN_URLS: turn:${DOMAIN}:3478?transport=udp,turn:${DOMAIN}:3478?transport=tcp
+      TURN_SECRET: ${TURN_SECRET}
+      MAX_VIEWERS_PER_ROOM: ${MAX_VIEWERS_PER_ROOM:-5}
+    expose:
+      - '3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    depends_on:
+      - api
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+  coturn:
+    image: coturn/coturn:4.18.0-r0
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --no-cli
+      - --fingerprint
+      - --lt-cred-mech
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET}
+      - --realm=${DOMAIN}
+      - --listening-port=3478
+      - --min-port=49152
+      - --max-port=49252
+      - --external-ip=${PUBLIC_IP}/${PRIVATE_IP}
+      - --no-tls
+      - --no-multicast-peers
+      - --user-quota=12
+      - --total-quota=100
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.0.0.0-192.0.0.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --denied-peer-ip=198.18.0.0-198.19.255.255
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+
+volumes:
+  caddy_data:
+  caddy_config:

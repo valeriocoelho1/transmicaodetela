@@ -1,0 +1,24 @@
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "display-capture=(self)"
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle /socket.io/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
