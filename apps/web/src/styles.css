@@ -140,16 +140,8 @@ input[type='text'] {
   color: var(--live);
 }
 
-.status-pill--neutral {
-  color: var(--muted);
-}
-
 .status-pill--warning {
   color: var(--warning);
-}
-
-.status-pill--error {
-  color: var(--danger);
 }
 
 .remote-video video {

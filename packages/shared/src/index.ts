@@ -103,8 +103,3 @@ export const roomSummaryResponse = z.object({
   maxViewers: z.number().int().positive(),
 });
 export type RoomSummaryResponse = z.infer<typeof roomSummaryResponse>;
-
-export const apiErrorResponse = z.object({
-  error: z.enum(['ROOM_NOT_FOUND', 'SERVER_BUSY']),
-});
-export type ApiErrorResponse = z.infer<typeof apiErrorResponse>;
