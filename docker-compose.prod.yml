@@ -52,12 +52,12 @@ services:
 
   coturn:
     image: coturn/coturn:4.18.0-r0
+    entrypoint: ['turnserver']
     restart: unless-stopped
     network_mode: host
     command:
       - -n
       - --log-file=stdout
-      - --no-cli
       - --fingerprint
       - --lt-cred-mech
       - --use-auth-secret
