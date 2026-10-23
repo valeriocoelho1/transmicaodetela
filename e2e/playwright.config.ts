@@ -24,6 +24,8 @@ export default defineConfig({
             NODE_ENV: 'test',
             PORT: String(LOCAL_API_PORT),
             MAX_VIEWERS_PER_ROOM: '2',
+            ROOM_HOST_GRACE_MS: '3000',
+            SWEEP_INTERVAL_MS: '500',
             ALLOWED_ORIGINS: `http://localhost:${LOCAL_WEB_PORT}`,
           },
           reuseExistingServer: false,

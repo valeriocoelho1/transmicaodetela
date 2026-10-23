@@ -2,8 +2,17 @@ import { type Browser, type BrowserContext, expect, type Page } from '@playwrigh
 import { installFakeDisplayMedia } from './fake-display-media';
 import { BASE_URL, EXTERNAL_BASE_URL } from './target';
 
-function newContext(browser: Browser): Promise<BrowserContext> {
-  return browser.newContext({ ignoreHTTPSErrors: Boolean(EXTERNAL_BASE_URL) });
+const openContexts: BrowserContext[] = [];
+
+export async function newContext(browser: Browser): Promise<BrowserContext> {
+  const context = await browser.newContext({ ignoreHTTPSErrors: Boolean(EXTERNAL_BASE_URL) });
+  openContexts.push(context);
+  return context;
+}
+
+export async function closeContexts(): Promise<void> {
+  const contexts = openContexts.splice(0);
+  await Promise.all(contexts.map((context) => context.close()));
 }
 
 export function url(path: string): string {

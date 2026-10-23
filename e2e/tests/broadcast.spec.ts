@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { expectVideoPlaying, openHostRoom, openViewer, url, WAITING } from '../support/helpers';
+import {
+  closeContexts,
+  expectVideoPlaying,
+  openHostRoom,
+  openViewer,
+  url,
+  WAITING,
+} from '../support/helpers';
+
+test.afterEach(closeContexts);
 
 test('1. viewer who joins before the broadcast receives the video', async ({ browser }) => {
   const { host, link } = await openHostRoom(browser);
