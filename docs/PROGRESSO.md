@@ -198,7 +198,7 @@ Pedido: tema cartoon/gamer em pixel art (desenhado e aprovado no canvas), "c" le
 
 Mudanças:
 
-- Tema único para o app inteiro: a landing é colorida (céu azul, creme, tomate, amarelo, contornos pretos) e as páginas de sala, espectador e 404 são escuras e minimalistas, com o amarelo como único destaque. O tema claro/escuro por `prefers-color-scheme` e o tema `.app--dark` da etapa anterior foram removidos; o `styles.css` foi reescrito com um conjunto só de tokens (de ~1400 para ~1100 linhas, sem regras sem uso).
+- Tema único para o app inteiro: a landing é colorida (céu azul, creme, tomate, amarelo, contornos pretos) e as páginas de sala, espectador e 404 são escuras e minimalistas, com o amarelo como único destaque. O tema claro/escuro por `prefers-color-scheme` e o tema `.app--dark` da etapa anterior foram removidos; o `styles.css` foi reescrito com um conjunto só de tokens (de 1407 para 1319 linhas depois do Prettier, sem regras sem uso).
 - `PixelSprite`: a pixel art (TV, estrela, cursor, espectador, marca do GitHub) é desenhada a partir de mapas de caracteres legíveis, em vez de centenas de `<rect>` no JSX.
 - `Layout` virou dois componentes: `LandingLayout` (barra fixa e rodapé) e `Layout` (só o conteúdo, sem cabeçalho, como no canvas da sala).
 - A sala, o espectador e a 404 usam a moldura de TV em volta do vídeo; a sala mostra os lugares ocupados como bonequinhos (`ViewerSeats`, com `aria-label`).
