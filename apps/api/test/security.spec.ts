@@ -52,7 +52,9 @@ describe('Security checklist', () => {
     t = await startApp();
     const room = await t.createRoom();
     const socket = await t.connect();
-    for (const hostToken of ['x'.repeat(43), `${room.hostToken.slice(0, -1)}A`, 'short']) {
+    const last = room.hostToken.at(-1) === 'A' ? 'B' : 'A';
+    const almostRight = `${room.hostToken.slice(0, -1)}${last}`;
+    for (const hostToken of ['x'.repeat(43), almostRight, 'short']) {
       const ack = await socket.emitWithAck('host:join', { roomId: room.roomId, hostToken });
       expect(ack.ok).toBe(false);
     }
