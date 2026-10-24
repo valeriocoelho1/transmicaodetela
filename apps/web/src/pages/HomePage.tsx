@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
+import { Icon } from '../components/Icon';
 import { Layout } from '../components/Layout';
+import { REPOSITORY_URL } from '../config';
 import { ApiError, createRoom } from '../lib/api';
 import { saveHostToken } from '../lib/host-token';
 
@@ -30,6 +32,36 @@ const steps: { title: string; text: string }[] = [
     text: 'Mande por onde quiser. O link é tudo que o espectador precisa.',
   },
 ];
+
+const questions: { question: string; answer: string }[] = [
+  {
+    question: 'Quantas pessoas podem assistir?',
+    answer:
+      'Cada sala tem um limite de espectadores ao mesmo tempo. A página da sala mostra esse limite e quantas pessoas estão assistindo agora.',
+  },
+  {
+    question: 'Dá para assistir pelo celular?',
+    answer:
+      'Sim. Quem assiste só precisa abrir o link no navegador. Para transmitir, use um computador.',
+  },
+  {
+    question: 'O som vai junto?',
+    answer:
+      'Vai, se você compartilhar uma aba do navegador e marcar a opção de áudio, quando o navegador oferecer.',
+  },
+  {
+    question: 'A transmissão fica gravada?',
+    answer:
+      'Não. O vídeo vai do seu navegador para o de quem assiste e não é guardado em lugar nenhum.',
+  },
+  {
+    question: 'Quando a sala termina?',
+    answer:
+      'Quando você clica em Encerrar sala, ou quando sai da página e não volta logo. Recarregar a página não derruba a sala. Toda sala também tem um tempo máximo de duração.',
+  },
+];
+
+const repositoryName = new URL(REPOSITORY_URL).pathname.slice(1);
 
 function Selection() {
   return (
@@ -127,7 +159,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="landing-section" aria-labelledby="how-title">
+      <section id="como-funciona" className="landing-section" aria-labelledby="how-title">
         <div className="landing-section__inner">
           <h2 id="how-title" className="landing-section__title">
             Como funciona
@@ -160,6 +192,46 @@ export function HomePage() {
               nenhum.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section id="perguntas" className="landing-section" aria-labelledby="faq-title">
+        <div className="landing-section__inner landing-faq">
+          <h2 id="faq-title" className="landing-section__title">
+            Perguntas frequentes
+          </h2>
+          <div>
+            {questions.map((item, index) => (
+              <details key={item.question} className="faq-item" open={index === 0}>
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="contribuir" className="landing-section" aria-labelledby="contribute-title">
+        <div className="landing-section__inner landing-contribute">
+          <div className="landing-contribute__intro">
+            <h2 id="contribute-title" className="landing-section__title">
+              Contribua com o projeto
+            </h2>
+            <p>
+              O código está no GitHub. Encontrou um problema ou tem uma ideia? Abra uma issue ou
+              envie um pull request.
+            </p>
+          </div>
+          <a className="repo-link" href={REPOSITORY_URL}>
+            <span className="repo-link__text">
+              <span className="repo-link__label">Repositório</span>
+              <span className="repo-link__name">{repositoryName}</span>
+            </span>
+            <span className="repo-link__action">
+              <Icon name="code" size={18} />
+              Ver no GitHub
+            </span>
+          </a>
         </div>
       </section>
     </Layout>

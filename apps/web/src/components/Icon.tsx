@@ -24,6 +24,7 @@ const paths = {
       <path d="m9 12 2 2 4-4" />
     </>
   ),
+  code: <path d="m8 8-4 4 4 4M16 8l4 4-4 4" />,
   select: <rect x="4" y="4" width="16" height="16" strokeDasharray="3 2.5" />,
   play: <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />,
   stop: <rect x="6.5" y="6.5" width="11" height="11" rx="1.5" />,

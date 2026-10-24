@@ -52,7 +52,7 @@ export function HostPage() {
             ? 'Esta sala foi aberta em outra aba.'
             : END_REASON_MESSAGES[session.endedReason ?? 'HOST_ENDED'];
     return (
-      <Layout width="narrow">
+      <Layout width="narrow" dark>
         <h1 className="page-title">Sua sala</h1>
         <div className="card">
           <StateMessage
@@ -73,7 +73,7 @@ export function HostPage() {
   const inRoom = state === 'ready' || state === 'starting' || state === 'live';
 
   return (
-    <Layout>
+    <Layout dark>
       <div className="page-head">
         <h1 className="page-title">Sua sala</h1>
         <div className="page-head__status" aria-live="polite">
@@ -85,15 +85,18 @@ export function HostPage() {
 
       <div className="host-grid">
         <div className="stage">
-          <div className={`stage__frame${session.previewStream ? '' : ' stage__frame--empty'}`}>
-            {session.previewStream ? (
-              <LocalPreview stream={session.previewStream} />
-            ) : (
-              <div className="stage__placeholder">
-                <Icon name="screen" size={40} />
-                <p>A prévia da sua tela aparece aqui.</p>
-              </div>
-            )}
+          <div className={`stage__screen${state === 'live' ? ' stage__screen--live' : ''}`}>
+            <div className="stage__outline ants" aria-hidden="true" />
+            <div className={`stage__frame${session.previewStream ? '' : ' stage__frame--empty'}`}>
+              {session.previewStream ? (
+                <LocalPreview stream={session.previewStream} />
+              ) : (
+                <div className="stage__placeholder">
+                  <Icon name="screen" size={40} />
+                  <p>A prévia da sua tela aparece aqui.</p>
+                </div>
+              )}
+            </div>
           </div>
           <div className="stage__bar">
             {state === 'live' ? (
