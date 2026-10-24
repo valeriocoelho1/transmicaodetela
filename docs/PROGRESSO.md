@@ -143,6 +143,28 @@ Componentes novos: `Button`, `Card`, `Callout`, `Icon` (SVGs próprios), `LinkFi
 
 Os demais textos (título, descrição, aviso de IP, botões, estados, erros) continuam exatamente os da tabela.
 
+### Etapa 6: nova landing (2026-10-24, branch `feat/ui-landing-and-styles`)
+
+Pedido: landing com identidade própria, paleta escura, título à esquerda e "Criar sala" à direita, animação de um cursor desenhando a seleção pontilhada em volta do título, sem o alerta de IP.
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm build`, `typecheck`, `lint`, `format:check` | exit 0 |
+| `pnpm test` | shared 13, web 24, api 55 |
+| `pnpm test:e2e` | 11/11 |
+| Navegador (painel do app, servidor de dev): 1440 px, 800 px e celular 375 px | layout conferido; a animação roda uma vez ao carregar. Encontrado e corrigido: o cursor passava 8 px da borda no celular e criava rolagem horizontal (`overflow-x: clip` na landing) |
+
+Mudanças: `Layout` ganhou `width="landing"` (página inteira escura, cabeçalho sem fundo); `HomePage` refeita (seleção animada, passos, diagrama anfitrião → espectadores com o servidor ao lado); ícone `select` novo, ícone `globe` e animação `appear` removidos por não terem mais uso. Fonte Archivo (eixo de largura) empacotada pelo Vite, sem requisição externa.
+
+**Textos novos, para revisão:**
+
+- Título (h1): "Mostre sua tela para quem tiver o link." (substitui "Compartilhar tela", que continua como marca no cabeçalho). Etiqueta da seleção: "Tela inteira" (decorativa, `aria-hidden`).
+- Passos: "Crie uma sala — Um clique gera a sala e o link para quem vai assistir.", "Escolha o que mostrar — A tela inteira, uma janela ou uma aba, no seletor do próprio navegador.", "Envie o link — Mande por onde quiser. O link é tudo que o espectador precisa." O exemplo de link usa o host atual com um id ilustrativo.
+- Seção "O vídeo vai direto de você para quem assiste." com "Nenhuma conta, nenhum programa. Para assistir, até o celular serve. A imagem sai do seu navegador e chega ao navegador de cada espectador, sem ficar guardada em lugar nenhum." Diagrama: "Anfitrião", "Espectador", "Servidor — Só combina a conexão. O vídeo não passa por aqui."
+- Saíram: selo "Transmissão de tela pelo navegador" e os três destaques.
+
+A descrição e o aviso de IP continuam com o texto exato da tabela; o aviso deixou de ser um alerta e virou uma nota pequena abaixo do botão.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -178,6 +200,10 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-24 (Etapa 6) — h1 da tela inicial passa a ser "Mostre sua tela para quem tiver o link." por decisão do usuário (os docs pediam "Compartilhar tela"); o teste foi atualizado.
+- 2026-10-24 (Etapa 6) — Aviso de IP mantido (regra de `06-seguranca-e-limites.md`), mas como nota discreta abaixo do botão, sem o visual de alerta, por decisão do usuário.
+- 2026-10-24 (Etapa 6) — Dependência nova `@fontsource-variable/archivo` (aprovada pelo usuário): fonte com eixo de largura, servida pelo próprio site, sem pedir nada a terceiros.
+- 2026-10-24 (Etapa 6) — A landing é sempre escura, nos dois temas do sistema; as outras páginas continuam com claro/escuro por `prefers-color-scheme`.
 - 2026-10-23 (Etapa 5) — Trabalho feito numa branch própria (`feat/ui-landing-and-styles`), para a `main` e a tag `v0.1.0` continuarem apontando para o MVP verificado.
 - 2026-10-23 (Etapa 5) — Um único botão "Criar sala" na landing (os testes procuram o botão por nome; dois botões iguais seriam ambíguos para leitores de tela e para os testes).
 - 2026-10-23 (Etapa 5) — "Tela cheia" no espectador passa a colocar o quadro inteiro em tela cheia (não só o `<video>`), para manter o fundo escuro e o enquadramento.
