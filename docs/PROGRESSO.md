@@ -12,6 +12,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | 3 | Internet: TURN e deploy | concluída (validação local com Docker feita em 2026-10-23; TURN em rede real é pendência humana) | `bc72f24` |
 | 4 | Endurecimento e entrega | concluída (tag `v0.1.0`) | `0348db4` |
 
+| 5 | Interface: landing page e estilo (pedida depois do MVP, branch `feat/ui-landing-and-styles`) | concluída | `5e1dec6` |
 Status possíveis: `pendente`, `em andamento`, `concluída`, `concluída com ressalvas` (explique abaixo).
 
 ## Verificações executadas
@@ -119,6 +120,29 @@ Executada a seção "Verificação" completa com `.env` temporário (`DOMAIN=loc
 | Clone limpo (pasta temporária, removida depois) | `pnpm install --frozen-lockfile`, `build`, `typecheck`, `lint`, `format:check`, `test` (13/24/55) e `test:e2e` (11/11): exit 0. `docker compose -f docker-compose.prod.yml config`: exit 0 (só avisos de variáveis não definidas, porque o clone não tem `.env`) |
 | Tag | `v0.1.0` anotada, local, sem push |
 
+### Etapa 5: interface (2026-10-23, branch `feat/ui-landing-and-styles`)
+
+Pedido: componentes e estilo para todas as páginas, com uma landing page para criar a sala. Sem mudança de comportamento, de protocolo ou de dependências (CSS puro, sem biblioteca de UI, sem fonte externa).
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm build`, `typecheck`, `lint`, `format:check` | exit 0 |
+| `pnpm test` | shared 13, web 24, api 55 |
+| `pnpm test:e2e` | 11/11 (todos os textos e papéis usados pelos testes continuam iguais) |
+| Capturas com Playwright (script fora do repositório): 9 telas × desktop 1280 px, celular 360 px e tema escuro | 27 capturas revisadas; nenhuma com rolagem horizontal. Encontrados e corrigidos: conteúdo do cartão de fim deslocado para a esquerda; palco vazio estourando a largura no celular (altura mínima + `aspect-ratio`); botão "Criar sala" sem largura total no celular |
+| Teste instável encontrado | `security.spec.ts` (Fase 4) montava o "token quase certo" trocando o último caractere por `A`; quando o token já terminava em `A` (1 em 64), o teste falhava. Corrigido; 30 execuções seguidas sem falha. A tag `v0.1.0` contém a versão instável do teste (o produto não muda) |
+
+Componentes novos: `Button`, `Card`, `Callout`, `Icon` (SVGs próprios), `LinkField`, `StateMessage`; `Layout` ganhou cabeçalho e rodapé; `StatusPill`, `CopyButton` e `RemoteVideo` foram refeitos. `styles.css` virou um design system com tokens (cores claro/escuro, espaçamento, raios, sombras) e respeita `prefers-reduced-motion`.
+
+**Textos novos (fora da tabela de `03-frontend.md`), para revisão:**
+
+- Cabeçalho: "Compartilhar tela" (marca, link para o início). Rodapé: "Vídeo direto entre navegadores, sem cadastro e sem instalar nada."
+- Landing: selo "Transmissão de tela pelo navegador"; seção "Como funciona" com "Crie uma sala — Um clique gera a sua sala e o link para os espectadores.", "Compartilhe a tela — Escolha a tela inteira, uma janela ou uma aba no seletor do navegador.", "Envie o link — Quem abrir o link assiste na hora, pelo navegador."; destaques "Sem cadastro — Nem o anfitrião nem os espectadores precisam de conta.", "Sem instalar nada — Funciona no navegador. Para assistir, até o celular serve.", "Direto entre navegadores — O vídeo não passa pelo servidor: vai do anfitrião para cada espectador."; nota "Para compartilhar a tela, use um navegador de computador atualizado."
+- Anfitrião: títulos de cartão "Link da sala" e "Espectadores"; palco vazio "A prévia da sua tela aparece aqui."; "Voltar ao início" nas telas de fim e erro.
+- Espectador: título "Transmissão"; "Voltar ao início" nas telas de fim e erro.
+
+Os demais textos (título, descrição, aviso de IP, botões, estados, erros) continuam exatamente os da tabela.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -154,6 +178,9 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-23 (Etapa 5) — Trabalho feito numa branch própria (`feat/ui-landing-and-styles`), para a `main` e a tag `v0.1.0` continuarem apontando para o MVP verificado.
+- 2026-10-23 (Etapa 5) — Um único botão "Criar sala" na landing (os testes procuram o botão por nome; dois botões iguais seriam ambíguos para leitores de tela e para os testes).
+- 2026-10-23 (Etapa 5) — "Tela cheia" no espectador passa a colocar o quadro inteiro em tela cheia (não só o `<video>`), para manter o fundo escuro e o enquadramento.
 - 2026-10-23 (Fase 4) — O cenário e2e "anfitrião sem token" usa um `roomId` válido qualquer, sem criar sala: a página recusa antes de qualquer rede. Assim a suíte cria 9 salas por rodada, abaixo do limite de 10 por minuto.
 - 2026-10-23 (Fase 4) — O e2e de queda de rede do espectador ficou na suíte: `context.setOffline` não fecha o WebSocket aberto, então a queda só é percebida pelo timeout de ping padrão do Socket.IO (25 s + 20 s). O teste tem timeout próprio de 2 min. Nenhum gancho de teste foi colocado no produto e os tempos de ping do Socket.IO não foram alterados (seria mudança de comportamento).
 - 2026-10-23 (Fase 4) — Os helpers do e2e fecham todos os contextos de navegador após cada teste. Sem isso, as transmissões dos cenários anteriores continuavam rodando e deixavam os seguintes lentos.
