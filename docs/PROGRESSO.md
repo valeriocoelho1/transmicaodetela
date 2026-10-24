@@ -185,6 +185,27 @@ Mudanças: tema escuro `.app--dark` (tokens redefinidos: fundo `#07080c`, destaq
 - "Contribua com o projeto": "O código está no GitHub. Encontrou um problema ou tem uma ideia? Abra uma issue ou envie um pull request."; cartão "Repositório" com o nome do repositório e "Ver no GitHub".
 - Sala: os títulos dos cartões ("Link da sala", "Espectadores") deixam de ser caixa-alta no tema escuro.
 
+### Etapa 8: redesign pixel art (2026-10-24, branch `feat/ui-landing-and-styles`)
+
+Pedido: tema cartoon/gamer em pixel art (desenhado e aprovado no canvas), "c" legível, estrelas piscando suavemente, limpeza do código e revisão de boas práticas do front (skill `boas-praticas-front` do usuário).
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm build`, `typecheck`, `lint`, `format:check` | exit 0 |
+| `pnpm test` | shared 13, web 24, api 55 |
+| `pnpm test:e2e` | 11/11 |
+| Navegador (servidor de dev): landing em 1440 px e 375 px; sala criada pelo botão em 1440 e 375 px; espectador aguardando; 404 | sem rolagem horizontal. Encontrados e corrigidos: marca quebrando em duas linhas na barra do celular; mini TVs do diagrama sumindo no celular; texto do "Servidor" vazando da caixa |
+
+Mudanças:
+
+- Tema único para o app inteiro: a landing é colorida (céu azul, creme, tomate, amarelo, contornos pretos) e as páginas de sala, espectador e 404 são escuras e minimalistas, com o amarelo como único destaque. O tema claro/escuro por `prefers-color-scheme` e o tema `.app--dark` da etapa anterior foram removidos; o `styles.css` foi reescrito com um conjunto só de tokens (de ~1400 para ~1100 linhas, sem regras sem uso).
+- `PixelSprite`: a pixel art (TV, estrela, cursor, espectador, marca do GitHub) é desenhada a partir de mapas de caracteres legíveis, em vez de centenas de `<rect>` no JSX.
+- `Layout` virou dois componentes: `LandingLayout` (barra fixa e rodapé) e `Layout` (só o conteúdo, sem cabeçalho, como no canvas da sala).
+- A sala, o espectador e a 404 usam a moldura de TV em volta do vídeo; a sala mostra os lugares ocupados como bonequinhos (`ViewerSeats`, com `aria-label`).
+- Boas práticas: `main.tsx` sem non-null assertion; `RemoteVideo` sem `catch` silencioso no som (volta para mudo se o navegador recusar) e com motivo documentado no de tela cheia; variante `ghost` do botão, tom `warning` do Callout, ícones `shield`/`globe` e classes sem estilo removidos; animações respeitam `prefers-reduced-motion`.
+
+**Textos novos, para revisão:** "Quer contribuir?" e "Abra uma issue ou envie um pull request no repositório do projeto.", com o botão "link" (nome acessível "link do repositório no GitHub"); "Tela inteira" (decorativo); "N de M lugares ocupados" (só para leitor de tela).
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -220,6 +241,11 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-24 (Etapa 8) — Fonte pixel: Tiny5 (`@fontsource/tiny5`), no lugar da Pixelify Sans do primeiro canvas. O "C" maiúsculo da Pixelify é quase fechado e fica parecido com "O" (o problema era o desenho da letra, não o contorno); a Tiny5 tem o "C" aberto. Comparadas no navegador: Pixelify Sans, Jersey 10/15, Silkscreen, Tiny5, Micro 5, Bytesized, Handjet, DotGothic16, Workbench, Sixtyfour, VT323, Press Start 2P. Texto corrido em Rubik (`@fontsource-variable/rubik`). `@fontsource-variable/archivo` removida.
+- 2026-10-24 (Etapa 8) — Como a Tiny5 tem traço fino, os títulos de seção não usam contorno (que fechava as letras): sombra dura em vez disso; no fundo creme o título é escuro com sombra amarela.
+- 2026-10-24 (Etapa 8) — O app deixa de seguir o tema claro/escuro do sistema: o visual é fixo, como no canvas aprovado.
+- 2026-10-24 (Etapa 8) — A caixa "Quer contribuir?" usa a marca do GitHub redesenhada em pixel art, a pedido do usuário. As diretrizes de marca do GitHub pedem para não alterar o logo; trocar pelo logo oficial antes de divulgar o site, se for o caso.
+- 2026-10-24 (Etapa 8) — `eslint-plugin-react-hooks` (regras de hooks e dependências de efeitos) não foi adicionado: é dependência nova e aguarda aprovação.
 - 2026-10-24 (Etapa 7) — As respostas das perguntas frequentes não citam números (limite de espectadores, tempo de espera, duração máxima), porque são configuráveis por variável de ambiente; a página da sala mostra o limite real.
 - 2026-10-24 (Etapa 7) — O ícone do link do GitHub é um `<>` genérico, não a marca do GitHub.
 - 2026-10-24 (Etapa 6) — h1 da tela inicial passa a ser "Mostre sua tela para quem tiver o link." por decisão do usuário (os docs pediam "Compartilhar tela"); o teste foi atualizado.
