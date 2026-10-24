@@ -165,6 +165,26 @@ Mudanças: `Layout` ganhou `width="landing"` (página inteira escura, cabeçalho
 
 A descrição e o aviso de IP continuam com o texto exato da tabela; o aviso deixou de ser um alerta e virou uma nota pequena abaixo do botão.
 
+### Etapa 7: seções novas, nav de vidro e sala escura (2026-10-24, branch `feat/ui-landing-and-styles`)
+
+Pedido: mais seções na landing (inclusive "Contribuir", com link para o GitHub), nav bar "liquid glass", hero mais perto da nav, tom mais próximo do preto e a página da sala no mesmo estilo.
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm build`, `typecheck`, `lint`, `format:check` | exit 0 |
+| `pnpm test` | shared 13, web 24, api 55 |
+| `pnpm test:e2e` | 11/11 |
+| Navegador (painel do app, servidor de dev): landing e sala em 1440 px e 375 px | nav fixa e translúcida sobre o conteúdo; links de seção levam a cada seção; sala criada pelo botão abre no tema escuro; sem rolagem horizontal. O estado "ao vivo" da sala foi exercitado pelo e2e, não visto na tela (o seletor de tela do navegador não abre no painel) |
+
+Mudanças: tema escuro `.app--dark` (tokens redefinidos: fundo `#07080c`, destaque dourado `#d9b871`), usado pela landing e pela sala do anfitrião (`Layout dark`); cabeçalho vira uma barra flutuante translúcida com desfoque, com links de seção na landing (escondidos abaixo de 900 px) e link "GitHub" nas páginas escuras. Na sala, a prévia ganha a borda pontilhada, que se move enquanto está ao vivo. Espectador e "Página não encontrada" continuam no tema claro/escuro do sistema. URL do repositório em `config.ts` (`REPOSITORY_URL`), lida do `git remote` do projeto. Ícone novo `code`.
+
+**Textos novos, para revisão:**
+
+- Nav: "Como funciona", "Perguntas", "Contribuir", "GitHub".
+- "Perguntas frequentes": "Quantas pessoas podem assistir? — Cada sala tem um limite de espectadores ao mesmo tempo. A página da sala mostra esse limite e quantas pessoas estão assistindo agora."; "Dá para assistir pelo celular? — Sim. Quem assiste só precisa abrir o link no navegador. Para transmitir, use um computador."; "O som vai junto? — Vai, se você compartilhar uma aba do navegador e marcar a opção de áudio, quando o navegador oferecer."; "A transmissão fica gravada? — Não. O vídeo vai do seu navegador para o de quem assiste e não é guardado em lugar nenhum."; "Quando a sala termina? — Quando você clica em Encerrar sala, ou quando sai da página e não volta logo. Recarregar a página não derruba a sala. Toda sala também tem um tempo máximo de duração."
+- "Contribua com o projeto": "O código está no GitHub. Encontrou um problema ou tem uma ideia? Abra uma issue ou envie um pull request."; cartão "Repositório" com o nome do repositório e "Ver no GitHub".
+- Sala: os títulos dos cartões ("Link da sala", "Espectadores") deixam de ser caixa-alta no tema escuro.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -200,6 +220,8 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-24 (Etapa 7) — As respostas das perguntas frequentes não citam números (limite de espectadores, tempo de espera, duração máxima), porque são configuráveis por variável de ambiente; a página da sala mostra o limite real.
+- 2026-10-24 (Etapa 7) — O ícone do link do GitHub é um `<>` genérico, não a marca do GitHub.
 - 2026-10-24 (Etapa 6) — h1 da tela inicial passa a ser "Mostre sua tela para quem tiver o link." por decisão do usuário (os docs pediam "Compartilhar tela"); o teste foi atualizado.
 - 2026-10-24 (Etapa 6) — Aviso de IP mantido (regra de `06-seguranca-e-limites.md`), mas como nota discreta abaixo do botão, sem o visual de alerta, por decisão do usuário.
 - 2026-10-24 (Etapa 6) — Dependência nova `@fontsource-variable/archivo` (aprovada pelo usuário): fonte com eixo de largura, servida pelo próprio site, sem pedir nada a terceiros.
