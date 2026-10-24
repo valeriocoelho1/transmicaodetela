@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
-import { Icon, type IconName } from '../components/Icon';
 import { Layout } from '../components/Layout';
 import { ApiError, createRoom } from '../lib/api';
 import { saveHostToken } from '../lib/host-token';
@@ -17,68 +16,62 @@ function errorMessage(error: unknown): string {
   return 'Não foi possível criar a sala. Tente novamente em instantes.';
 }
 
-const steps: { icon: IconName; title: string; text: string }[] = [
+const steps: { title: string; text: string }[] = [
   {
-    icon: 'play',
     title: 'Crie uma sala',
-    text: 'Um clique gera a sua sala e o link para os espectadores.',
+    text: 'Um clique gera a sala e o link para quem vai assistir.',
   },
   {
-    icon: 'screen',
-    title: 'Compartilhe a tela',
-    text: 'Escolha a tela inteira, uma janela ou uma aba no seletor do navegador.',
+    title: 'Escolha o que mostrar',
+    text: 'A tela inteira, uma janela ou uma aba, no seletor do próprio navegador.',
   },
   {
-    icon: 'link',
     title: 'Envie o link',
-    text: 'Quem abrir o link assiste na hora, pelo navegador.',
+    text: 'Mande por onde quiser. O link é tudo que o espectador precisa.',
   },
 ];
 
-const highlights: { icon: IconName; title: string; text: string }[] = [
-  {
-    icon: 'users',
-    title: 'Sem cadastro',
-    text: 'Nem o anfitrião nem os espectadores precisam de conta.',
-  },
-  {
-    icon: 'globe',
-    title: 'Sem instalar nada',
-    text: 'Funciona no navegador. Para assistir, até o celular serve.',
-  },
-  {
-    icon: 'shield',
-    title: 'Direto entre navegadores',
-    text: 'O vídeo não passa pelo servidor: vai do anfitrião para cada espectador.',
-  },
-];
-
-function HeroIllustration() {
+function Selection() {
   return (
-    <div className="hero-art" aria-hidden="true">
-      <div className="hero-art__window">
-        <div className="hero-art__bar">
-          <span />
-          <span />
-          <span />
-          <span className="hero-art__live" />
-        </div>
-        <div className="hero-art__screen">
-          <div className="hero-art__block hero-art__block--wide" />
-          <div className="hero-art__block" />
-          <div className="hero-art__block hero-art__block--short" />
-        </div>
+    <div className="selection" aria-hidden="true">
+      <span className="selection__tag">Tela inteira</span>
+      <span className="selection__handle selection__handle--tl" />
+      <span className="selection__handle selection__handle--tr" />
+      <span className="selection__handle selection__handle--bl" />
+      <span className="selection__handle selection__handle--br" />
+      <svg className="selection__cursor" viewBox="0 0 26 30" fill="none">
+        <path
+          d="M3 2v21l5.6-5.2 3.9 8.6 3.6-1.6-3.8-8.5H20L3 2Z"
+          fill="#ffffff"
+          stroke="#0d1330"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function DirectDiagram() {
+  return (
+    <div className="direct" aria-hidden="true">
+      <div className="direct__host">
+        <span className="direct__screen direct__screen--host" />
+        <span>Anfitrião</span>
       </div>
-      <div className="hero-art__viewers">
-        {[0, 1, 2].map((index) => (
-          <div
-            key={index}
-            className="hero-art__viewer"
-            style={{ animationDelay: `${index * 0.4}s` }}
-          >
-            <div className="hero-art__viewer-screen" />
-          </div>
-        ))}
+      {[1, 2, 3].map((row) => (
+        <div key={`line-${row}`} className="direct__line" style={{ gridRow: row }} />
+      ))}
+      {[1, 2, 3].map((row) => (
+        <div key={`viewer-${row}`} className="direct__viewer" style={{ gridRow: row }}>
+          <span className="direct__screen" />
+          <span>Espectador</span>
+        </div>
+      ))}
+      <div className="direct__link" />
+      <div className="direct__server">
+        <strong>Servidor</strong>
+        <span>Só combina a conexão. O vídeo não passa por aqui.</span>
       </div>
     </div>
   );
@@ -103,72 +96,71 @@ export function HomePage() {
   }
 
   return (
-    <Layout>
-      <section className="hero">
-        <div className="hero__content">
-          <span className="eyebrow">Transmissão de tela pelo navegador</span>
-          <h1>Compartilhar tela</h1>
-          <p className="hero__lead">
+    <Layout width="landing">
+      <section className="landing-hero">
+        <div className="landing-hero__title">
+          <h1>Mostre sua tela para quem tiver o link.</h1>
+          <Selection />
+        </div>
+        <div className="landing-hero__side">
+          <p className="landing-hero__lead">
             Crie uma sala, compartilhe a tela do computador e envie o link. Quem tiver o link
             assiste pelo navegador, sem cadastro.
           </p>
-          <div className="hero__actions">
-            <Button
-              variant="primary"
-              size="lg"
-              icon="play"
-              busy={creating}
-              disabled={creating}
-              onClick={() => void handleCreate()}
-            >
-              {creating ? 'Criando sala…' : 'Criar sala'}
-            </Button>
-          </div>
+          <Button
+            variant="primary"
+            size="lg"
+            icon="select"
+            busy={creating}
+            disabled={creating}
+            className="landing-hero__cta"
+            onClick={() => void handleCreate()}
+          >
+            {creating ? 'Criando sala…' : 'Criar sala'}
+          </Button>
           <div aria-live="polite">{error && <Callout tone="error">{error}</Callout>}</div>
+          <p className="landing-note">
+            Para compartilhar a tela, use um navegador de computador atualizado. A transmissão é
+            direta entre navegadores: o anfitrião e os espectadores podem ver o endereço IP uns dos
+            outros.
+          </p>
         </div>
-        <HeroIllustration />
       </section>
 
-      <section className="section" aria-labelledby="how-title">
-        <h2 id="how-title" className="section__title">
-          Como funciona
-        </h2>
-        <ol className="steps">
-          {steps.map((step, index) => (
-            <li key={step.title} className="steps__item">
-              <span className="steps__number">{index + 1}</span>
-              <span className="steps__icon">
-                <Icon name={step.icon} size={22} />
-              </span>
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </li>
-          ))}
-        </ol>
+      <section className="landing-section" aria-labelledby="how-title">
+        <div className="landing-section__inner">
+          <h2 id="how-title" className="landing-section__title">
+            Como funciona
+          </h2>
+          <ol className="landing-steps">
+            {steps.map((step, index) => (
+              <li key={step.title} className="landing-steps__item">
+                <span className="landing-steps__number">{index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+                {index === steps.length - 1 && (
+                  <span className="landing-steps__link">{window.location.host}/r/k7Qm2xPa</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
 
-      <section className="section" aria-label="Destaques">
-        <ul className="highlights">
-          {highlights.map((item) => (
-            <li key={item.title} className="highlights__item">
-              <Icon name={item.icon} size={22} />
-              <div>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="section">
-        <Callout tone="warning">
-          A transmissão é direta entre navegadores: o anfitrião e os espectadores podem ver o
-          endereço IP uns dos outros.
-        </Callout>
-        <p className="fine-print">
-          Para compartilhar a tela, use um navegador de computador atualizado.
-        </p>
+      <section className="landing-section landing-section--raised" aria-labelledby="direct-title">
+        <div className="landing-section__inner landing-direct">
+          <DirectDiagram />
+          <div className="landing-direct__text">
+            <h2 id="direct-title" className="landing-section__title">
+              O vídeo vai direto de você para quem assiste.
+            </h2>
+            <p>
+              Nenhuma conta, nenhum programa. Para assistir, até o celular serve. A imagem sai do
+              seu navegador e chega ao navegador de cada espectador, sem ficar guardada em lugar
+              nenhum.
+            </p>
+          </div>
+        </div>
       </section>
     </Layout>
   );

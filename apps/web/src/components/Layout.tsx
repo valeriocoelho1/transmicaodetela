@@ -3,13 +3,13 @@ import { Link } from 'react-router';
 import { Icon } from './Icon';
 
 interface LayoutProps {
-  width?: 'narrow' | 'wide';
+  width?: 'narrow' | 'wide' | 'landing';
   children: ReactNode;
 }
 
 export function Layout({ width = 'wide', children }: LayoutProps) {
   return (
-    <div className="app">
+    <div className={width === 'landing' ? 'app app--landing' : 'app'}>
       <header className="site-header">
         <div className="site-header__inner">
           <Link to="/" className="brand">

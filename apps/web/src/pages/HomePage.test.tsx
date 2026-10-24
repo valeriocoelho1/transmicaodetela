@@ -41,7 +41,9 @@ describe('HomePage', () => {
 
   it('shows the title, the description, the IP notice and the create button', async () => {
     await render();
-    expect(container.querySelector('h1')?.textContent).toBe('Compartilhar tela');
+    expect(container.querySelector('h1')?.textContent).toBe(
+      'Mostre sua tela para quem tiver o link.',
+    );
     expect(container.textContent).toContain('Crie uma sala, compartilhe a tela do computador');
     expect(container.textContent).toContain(
       'o anfitrião e os espectadores podem ver o endereço IP uns dos outros.',
