@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
 import { Icon } from '../components/Icon';
-import { Layout } from '../components/Layout';
+import { LandingLayout } from '../components/Layout';
+import { PixelSprite } from '../components/PixelSprite';
 import { REPOSITORY_URL } from '../config';
 import { ApiError, createRoom } from '../lib/api';
 import { saveHostToken } from '../lib/host-token';
@@ -18,7 +19,7 @@ function errorMessage(error: unknown): string {
   return 'Não foi possível criar a sala. Tente novamente em instantes.';
 }
 
-const steps: { title: string; text: string }[] = [
+const steps = [
   {
     title: 'Crie uma sala',
     text: 'Um clique gera a sala e o link para quem vai assistir.',
@@ -31,9 +32,9 @@ const steps: { title: string; text: string }[] = [
     title: 'Envie o link',
     text: 'Mande por onde quiser. O link é tudo que o espectador precisa.',
   },
-];
+] as const;
 
-const questions: { question: string; answer: string }[] = [
+const questions = [
   {
     question: 'Quantas pessoas podem assistir?',
     answer:
@@ -59,11 +60,12 @@ const questions: { question: string; answer: string }[] = [
     answer:
       'Quando você clica em Encerrar sala, ou quando sai da página e não volta logo. Recarregar a página não derruba a sala. Toda sala também tem um tempo máximo de duração.',
   },
-];
+] as const;
 
+const exampleLink = `${window.location.host}/r/k7Qm2xPa`;
 const repositoryName = new URL(REPOSITORY_URL).pathname.slice(1);
 
-function Selection() {
+function SelectionFrame() {
   return (
     <div className="selection" aria-hidden="true">
       <span className="selection__tag">Tela inteira</span>
@@ -71,15 +73,7 @@ function Selection() {
       <span className="selection__handle selection__handle--tr" />
       <span className="selection__handle selection__handle--bl" />
       <span className="selection__handle selection__handle--br" />
-      <svg className="selection__cursor" viewBox="0 0 26 30" fill="none">
-        <path
-          d="M3 2v21l5.6-5.2 3.9 8.6 3.6-1.6-3.8-8.5H20L3 2Z"
-          fill="#ffffff"
-          stroke="#0d1330"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <PixelSprite name="cursor" size={30} className="selection__cursor" />
     </div>
   );
 }
@@ -88,19 +82,19 @@ function DirectDiagram() {
   return (
     <div className="direct" aria-hidden="true">
       <div className="direct__host">
-        <span className="direct__screen direct__screen--host" />
+        <PixelSprite name="tv" size={200} className="direct__host-tv" />
         <span>Anfitrião</span>
       </div>
       {[1, 2, 3].map((row) => (
-        <div key={`line-${row}`} className="direct__line" style={{ gridRow: row }} />
+        <div key={`beam-${row}`} className="direct__beam" style={{ gridRow: row }} />
       ))}
       {[1, 2, 3].map((row) => (
         <div key={`viewer-${row}`} className="direct__viewer" style={{ gridRow: row }}>
-          <span className="direct__screen" />
+          <PixelSprite name="tv" size={72} />
           <span>Espectador</span>
         </div>
       ))}
-      <div className="direct__link" />
+      <div className="direct__wire" />
       <div className="direct__server">
         <strong>Servidor</strong>
         <span>Só combina a conexão. O vídeo não passa por aqui.</span>
@@ -128,62 +122,65 @@ export function HomePage() {
   }
 
   return (
-    <Layout width="landing">
-      <section className="landing-hero">
-        <div className="landing-hero__title">
-          <h1>Mostre sua tela para quem tiver o link.</h1>
-          <Selection />
-        </div>
-        <div className="landing-hero__side">
-          <p className="landing-hero__lead">
-            Crie uma sala, compartilhe a tela do computador e envie o link. Quem tiver o link
-            assiste pelo navegador, sem cadastro.
-          </p>
-          <Button
-            variant="primary"
-            size="lg"
-            icon="select"
-            busy={creating}
-            disabled={creating}
-            className="landing-hero__cta"
-            onClick={() => void handleCreate()}
-          >
-            {creating ? 'Criando sala…' : 'Criar sala'}
-          </Button>
-          <div aria-live="polite">{error && <Callout tone="error">{error}</Callout>}</div>
-          <p className="landing-note">
-            Para compartilhar a tela, use um navegador de computador atualizado. A transmissão é
-            direta entre navegadores: o anfitrião e os espectadores podem ver o endereço IP uns dos
-            outros.
-          </p>
+    <LandingLayout>
+      <section className="hero">
+        <PixelSprite name="star" size={28} className="star star--1" />
+        <PixelSprite name="star" size={20} className="star star--2" />
+        <PixelSprite name="star" size={36} className="star star--3" />
+
+        <div className="hero__inner">
+          <div className="hero__title">
+            <h1>Mostre sua tela para quem tiver o link.</h1>
+            <SelectionFrame />
+          </div>
+          <div className="hero__side">
+            <p className="hero__lead">
+              Crie uma sala, compartilhe a tela do computador e envie o link. Quem tiver o link
+              assiste pelo navegador, sem cadastro.
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              icon="select"
+              busy={creating}
+              disabled={creating}
+              onClick={() => void handleCreate()}
+            >
+              {creating ? 'Criando sala…' : 'Criar sala'}
+            </Button>
+            <div aria-live="polite">{error && <Callout tone="error">{error}</Callout>}</div>
+            <p className="hero__note">
+              Para compartilhar a tela, use um navegador de computador atualizado. A transmissão é
+              direta entre navegadores: o anfitrião e os espectadores podem ver o endereço IP uns
+              dos outros.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section id="como-funciona" className="landing-section" aria-labelledby="how-title">
-        <div className="landing-section__inner">
-          <h2 id="how-title" className="landing-section__title">
+      <section id="como-funciona" className="section section--paper" aria-labelledby="how-title">
+        <div className="section__inner">
+          <h2 id="how-title" className="section__title">
             Como funciona
           </h2>
-          <ol className="landing-steps">
+          <ol className="steps">
             {steps.map((step, index) => (
-              <li key={step.title} className="landing-steps__item">
-                <span className="landing-steps__number">{index + 1}</span>
+              <li key={step.title} className="steps__item pixel-box">
+                <span className="steps__number pixel-box">{index + 1}</span>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
-                {index === steps.length - 1 && (
-                  <span className="landing-steps__link">{window.location.host}/r/k7Qm2xPa</span>
-                )}
+                {index === steps.length - 1 && <span className="steps__link">{exampleLink}</span>}
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      <section className="landing-section landing-section--raised" aria-labelledby="direct-title">
-        <div className="landing-section__inner landing-direct">
+      <section className="section section--night" aria-labelledby="direct-title">
+        <div className="section__inner direct-section">
           <DirectDiagram />
-          <div className="landing-direct__text">
-            <h2 id="direct-title" className="landing-section__title">
+          <div className="direct-section__text">
+            <h2 id="direct-title" className="section__title">
               O vídeo vai direto de você para quem assiste.
             </h2>
             <p>
@@ -195,14 +192,31 @@ export function HomePage() {
         </div>
       </section>
 
-      <section id="perguntas" className="landing-section" aria-labelledby="faq-title">
-        <div className="landing-section__inner landing-faq">
-          <h2 id="faq-title" className="landing-section__title">
-            Perguntas frequentes
-          </h2>
-          <div>
+      <section id="perguntas" className="section section--paper" aria-labelledby="faq-title">
+        <div className="section__inner faq">
+          <div className="faq__aside">
+            <h2 id="faq-title" className="section__title">
+              Perguntas frequentes
+            </h2>
+            <div className="github-box pixel-box">
+              <div className="github-box__head">
+                <PixelSprite name="github" size={48} label="GitHub" />
+                <span className="github-box__title">Quer contribuir?</span>
+              </div>
+              <p>Abra uma issue ou envie um pull request no repositório do projeto.</p>
+              <a
+                className="btn btn--github"
+                href={REPOSITORY_URL}
+                aria-label="link do repositório no GitHub"
+              >
+                <span>link</span>
+                <Icon name="arrowRight" />
+              </a>
+            </div>
+          </div>
+          <div className="faq__list">
             {questions.map((item, index) => (
-              <details key={item.question} className="faq-item" open={index === 0}>
+              <details key={item.question} className="faq__item pixel-box" open={index === 0}>
                 <summary>{item.question}</summary>
                 <p>{item.answer}</p>
               </details>
@@ -211,10 +225,14 @@ export function HomePage() {
         </div>
       </section>
 
-      <section id="contribuir" className="landing-section" aria-labelledby="contribute-title">
-        <div className="landing-section__inner landing-contribute">
-          <div className="landing-contribute__intro">
-            <h2 id="contribute-title" className="landing-section__title">
+      <section
+        id="contribuir"
+        className="section section--tomato"
+        aria-labelledby="contribute-title"
+      >
+        <div className="section__inner contribute">
+          <div className="contribute__intro">
+            <h2 id="contribute-title" className="section__title">
               Contribua com o projeto
             </h2>
             <p>
@@ -222,18 +240,18 @@ export function HomePage() {
               envie um pull request.
             </p>
           </div>
-          <a className="repo-link" href={REPOSITORY_URL}>
-            <span className="repo-link__text">
-              <span className="repo-link__label">Repositório</span>
-              <span className="repo-link__name">{repositoryName}</span>
-            </span>
-            <span className="repo-link__action">
-              <Icon name="code" size={18} />
-              Ver no GitHub
-            </span>
-          </a>
+          <div className="repo-card pixel-box">
+            <div className="repo-card__text">
+              <span className="repo-card__label">Repositório</span>
+              <span className="repo-card__name">{repositoryName}</span>
+            </div>
+            <a className="btn btn--accent" href={REPOSITORY_URL}>
+              <Icon name="code" />
+              <span>Ver no GitHub</span>
+            </a>
+          </div>
         </div>
       </section>
-    </Layout>
+    </LandingLayout>
   );
 }

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { Icon, type IconName } from './Icon';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'danger' | 'success';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;

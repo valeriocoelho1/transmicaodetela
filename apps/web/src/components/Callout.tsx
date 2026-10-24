@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 
-type Tone = 'info' | 'warning' | 'error';
+type Tone = 'info' | 'error';
 
-const icons: Record<Tone, IconName> = { info: 'info', warning: 'shield', error: 'alert' };
+const icons: Record<Tone, IconName> = { info: 'info', error: 'alert' };
 
 export function Callout({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) {
   return (

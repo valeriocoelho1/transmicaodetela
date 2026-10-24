@@ -26,7 +26,7 @@ export function CopyButton({ text, onCopyFailed }: CopyButtonProps) {
 
   return (
     <Button
-      variant={copied ? 'secondary' : 'primary'}
+      variant={copied ? 'success' : 'primary'}
       icon={copied ? 'check' : 'copy'}
       onClick={() => void copy()}
     >

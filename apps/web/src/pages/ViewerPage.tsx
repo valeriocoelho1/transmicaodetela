@@ -1,7 +1,6 @@
 import { Link, useParams } from 'react-router';
 import { Button } from '../components/Button';
-import type { IconName } from '../components/Icon';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { Layout } from '../components/Layout';
 import { RemoteVideo } from '../components/RemoteVideo';
 import { StateMessage } from '../components/StateMessage';
@@ -33,9 +32,7 @@ export function ViewerPage() {
       <Layout>
         <div className="page-head">
           <h1 className="page-title">Transmissão</h1>
-          <div className="page-head__status">
-            <StatusPill tone="live" label="Ao vivo" />
-          </div>
+          <StatusPill tone="live" label="Ao vivo" />
         </div>
         <RemoteVideo stream={stream} hasAudio={hasAudio} />
       </Layout>
@@ -62,25 +59,27 @@ export function ViewerPage() {
         <h1 className="page-title">Transmissão</h1>
       </div>
       <div className="stage">
-        <div className="stage__frame stage__frame--empty">
-          <StateMessage
-            icon={stateIcons[current]}
-            tone={isError ? 'error' : 'neutral'}
-            busy={busy}
-            message={message}
-          >
-            {current === 'failed' && (
-              <Button variant="primary" onClick={retry}>
-                Tentar novamente
-              </Button>
-            )}
-            {isFinal && (
-              <Link className="btn btn--secondary" to="/">
-                <Icon name="arrowLeft" />
-                <span>Voltar ao início</span>
-              </Link>
-            )}
-          </StateMessage>
+        <div className="tv pixel-box">
+          <div className="stage__frame">
+            <StateMessage
+              icon={stateIcons[current]}
+              tone={isError ? 'error' : 'neutral'}
+              busy={busy}
+              message={message}
+            >
+              {current === 'failed' && (
+                <Button variant="primary" onClick={retry}>
+                  Tentar novamente
+                </Button>
+              )}
+              {isFinal && (
+                <Link className="btn btn--secondary" to="/">
+                  <Icon name="arrowLeft" />
+                  <span>Voltar ao início</span>
+                </Link>
+              )}
+            </StateMessage>
+          </div>
         </div>
       </div>
     </Layout>

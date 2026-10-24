@@ -18,12 +18,6 @@ const paths = {
       <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
     </>
   ),
-  shield: (
-    <>
-      <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" />
-      <path d="m9 12 2 2 4-4" />
-    </>
-  ),
   code: <path d="m8 8-4 4 4 4M16 8l4 4-4 4" />,
   select: <rect x="4" y="4" width="16" height="16" strokeDasharray="3 2.5" />,
   play: <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />,
@@ -68,6 +62,7 @@ const paths = {
     </>
   ),
   arrowLeft: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  arrowRight: <path d="M5 12h14M13 6l6 6-6 6" />,
 } as const;
 
 export type IconName = keyof typeof paths;
@@ -81,9 +76,9 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeWidth="2.25"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
       aria-hidden="true"
       focusable="false"
     >

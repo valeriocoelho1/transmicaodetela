@@ -6,6 +6,7 @@ import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { Layout } from '../components/Layout';
 import { LinkField } from '../components/LinkField';
+import { PixelSprite } from '../components/PixelSprite';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
 import { useHostSession } from '../hooks/useHostSession';
@@ -35,6 +36,24 @@ function LocalPreview({ stream }: { stream: MediaStream }) {
   return <video ref={ref} autoPlay playsInline muted />;
 }
 
+function ViewerSeats({ taken, total }: { taken: number; total: number }) {
+  const seats = Array.from({ length: total }, (_, seat) => seat < taken);
+  return (
+    <div className="viewer-seats" role="img" aria-label={`${taken} de ${total} lugares ocupados`}>
+      {seats.map((isTaken, seat) => (
+        <PixelSprite
+          key={seat}
+          name="viewer"
+          size={32}
+          className={
+            isTaken ? 'viewer-seats__seat viewer-seats__seat--taken' : 'viewer-seats__seat'
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 export function HostPage() {
   const { roomId = '' } = useParams();
   const session = useHostSession(roomId);
@@ -52,7 +71,7 @@ export function HostPage() {
             ? 'Esta sala foi aberta em outra aba.'
             : END_REASON_MESSAGES[session.endedReason ?? 'HOST_ENDED'];
     return (
-      <Layout width="narrow" dark>
+      <Layout width="narrow">
         <h1 className="page-title">Sua sala</h1>
         <div className="card">
           <StateMessage
@@ -73,10 +92,10 @@ export function HostPage() {
   const inRoom = state === 'ready' || state === 'starting' || state === 'live';
 
   return (
-    <Layout dark>
+    <Layout>
       <div className="page-head">
         <h1 className="page-title">Sua sala</h1>
-        <div className="page-head__status" aria-live="polite">
+        <div aria-live="polite">
           {state === 'live' && <StatusPill tone="live" label="Ao vivo" />}
           {state === 'connecting' && <StatusPill tone="neutral" label={CONNECTING_MESSAGE} />}
           {state === 'reconnecting' && <StatusPill tone="warning" label={RECONNECTING_MESSAGE} />}
@@ -85,9 +104,8 @@ export function HostPage() {
 
       <div className="host-grid">
         <div className="stage">
-          <div className={`stage__screen${state === 'live' ? ' stage__screen--live' : ''}`}>
-            <div className="stage__outline ants" aria-hidden="true" />
-            <div className={`stage__frame${session.previewStream ? '' : ' stage__frame--empty'}`}>
+          <div className="tv pixel-box">
+            <div className="stage__frame">
               {session.previewStream ? (
                 <LocalPreview stream={session.previewStream} />
               ) : (
@@ -96,6 +114,10 @@ export function HostPage() {
                   <p>A prévia da sua tela aparece aqui.</p>
                 </div>
               )}
+            </div>
+            <div className="tv__knobs" aria-hidden="true">
+              <span />
+              <span />
             </div>
           </div>
           <div className="stage__bar">
@@ -134,14 +156,12 @@ export function HostPage() {
             <LinkField link={link} />
           </Card>
           <Card title="Espectadores">
-            <div className="viewer-count">
-              <Icon name="users" size={24} />
-              <span className="viewer-count__value">
-                {inRoom ? formatViewerCount(session.viewerCount) : '—'}
-              </span>
-            </div>
+            <p className="viewer-count">{inRoom ? formatViewerCount(session.viewerCount) : '—'}</p>
             {session.maxViewers !== null && (
-              <p className="muted">Até {session.maxViewers} espectadores ao mesmo tempo.</p>
+              <>
+                <ViewerSeats taken={inRoom ? session.viewerCount : 0} total={session.maxViewers} />
+                <p className="muted">Até {session.maxViewers} espectadores ao mesmo tempo.</p>
+              </>
             )}
           </Card>
         </aside>

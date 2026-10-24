@@ -24,21 +24,35 @@ export function RemoteVideo({ stream, hasAudio }: RemoteVideoProps) {
   function toggleSound() {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !muted;
-    setMuted(!muted);
-    if (video.paused) void video.play().catch(() => undefined);
+    const nextMuted = !muted;
+    video.muted = nextMuted;
+    setMuted(nextMuted);
+    if (video.paused) {
+      // Autoplay with sound can be refused; fall back to muted playback instead of a frozen frame.
+      video.play().catch(() => {
+        video.muted = true;
+        setMuted(true);
+      });
+    }
   }
 
   function enterFullscreen() {
-    void frameRef.current?.requestFullscreen?.().catch(() => undefined);
+    // The browser may refuse fullscreen (e.g. permissions policy); the video keeps playing inline.
+    frameRef.current?.requestFullscreen().catch(() => undefined);
   }
 
-  const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled;
+  const canFullscreen = document.fullscreenEnabled;
 
   return (
     <div className="stage">
-      <div className="stage__frame" ref={frameRef}>
-        <video ref={videoRef} data-testid="remote-video" autoPlay playsInline muted={muted} />
+      <div className="tv pixel-box">
+        <div className="stage__frame" ref={frameRef}>
+          <video ref={videoRef} data-testid="remote-video" autoPlay playsInline muted={muted} />
+        </div>
+        <div className="tv__knobs" aria-hidden="true">
+          <span />
+          <span />
+        </div>
       </div>
       <div className="stage__bar">
         {hasAudio ? (
@@ -56,7 +70,7 @@ export function RemoteVideo({ stream, hasAudio }: RemoteVideoProps) {
           </p>
         )}
         {canFullscreen && (
-          <Button variant="ghost" icon="expand" onClick={enterFullscreen}>
+          <Button variant="secondary" icon="expand" onClick={enterFullscreen}>
             Tela cheia
           </Button>
         )}
