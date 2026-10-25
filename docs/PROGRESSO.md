@@ -236,7 +236,7 @@ Pedido: varredura de arquitetura, conexão, qualidade, hospedagem, versões e se
 | Codec negociado (teste temporário, apagado depois, lendo `getStats` do espectador no Chromium) | `video/VP9` |
 | Stack de produção no Docker (`.env` temporário, `DOMAIN=localhost`, apagado no fim) | `config` ok; build ok, imagens `transmicaodetela-api:0.2.0-check` e `transmicaodetela-web:0.2.0-check` (removidas no fim); api healthy; `/` com CSP, HSTS e `Cache-Control: no-cache`; `/assets/*.js` com `public, max-age=31536000, immutable`; coturn com 0 `ERROR` e `--no-tcp-relay: TCP relay endpoints are not allowed` no log |
 | `E2E_BASE_URL=https://localhost pnpm test:e2e` + teste temporário de CSP (landing, sala ao vivo e espectador assistindo) | 11 passaram, 0 violações de CSP, fontes carregadas. O cenário 8 falhou como esperado: ele supõe `ROOM_HOST_GRACE_MS=3000` (servidor do e2e) e a stack usa os 60 s padrão |
-| Testes instáveis com a máquina carregada | Na primeira rodada da varredura, `pnpm test` falhou (timeout do worker do Vitest e 3 testes da API) e passou ao repetir. O Vitest gastava 96% do tempo criando o jsdom em todo arquivo; agora o ambiente padrão é `node` e só os 2 arquivos que usam DOM pedem jsdom: de ~25 s para ~1,2 s |
+| Testes instáveis com a máquina carregada | Na primeira rodada da varredura, `pnpm test` falhou (timeout do worker do Vitest e 3 testes da API) e passou ao repetir. O Vitest gastava 96% do tempo criando o jsdom em todo arquivo; agora o ambiente padrão é `node` e só os 2 arquivos que usam DOM pedem jsdom: de ~25 s para ~1,2 s. Mesmo assim o `pnpm test` da raiz falhava 2 em 3 vezes: o Jest subia 7 workers (núcleos − 1) carregando o Nest num Mac de 8 GB, a máquina entrava em swap, o primeiro teste de cada arquivo da API passava dos 5 s e o worker do Vitest seguinte não subia em 60 s (limite fixo do Vitest). Correção: Jest com `maxWorkers: 50%` e `testTimeout: 15000`, e pacotes testados um por vez (`--workspace-concurrency=1`). Depois: 3 rodadas seguidas verdes, ~14 s cada (antes 45–135 s) |
 
 Mudanças:
 
@@ -258,6 +258,7 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-25 (Etapa 10) — `MAX_SOCKETS_PER_IP` = 20: o uso legítimo é de 1 socket por aba, e no 4G muita gente divide o mesmo IP (CGNAT), então o limite tem folga. O IP recusado não vai para o log.
 - 2026-10-25 (Etapa 10) — `--max-bps=375000` (≈ 3 Mbps por sessão): o vídeo usa no máximo 2 Mbps mais o áudio e as retransmissões.
 - 2026-10-25 (Etapa 10) — HSTS sem `includeSubDomains` e sem `preload`: o domínio ainda não existe e outros subdomínios dele podem não ter HTTPS.
+- 2026-10-25 (Etapa 10) — `pnpm test` da raiz testa um pacote por vez e o Jest usa metade dos núcleos: com tudo em paralelo, a máquina de desenvolvimento (8 GB) entrava em swap e os testes falhavam por tempo.
 - 2026-10-25 (Etapa 10) — Vitest com ambiente padrão `node` e `// @vitest-environment jsdom` em `host-token.test.ts` e `HomePage.test.tsx`.
 
 - 2026-10-23 — `.nvmrc` = `24` e `engines.node` = `>=24`: a LTS ativa no nodejs.org é a 24 ("Krypton"); a 26 ainda é Current. `@types/node` fixado em `^24` pelo mesmo motivo. A máquina local roda Node 26.0.0 e foi nela que tudo foi verificado.

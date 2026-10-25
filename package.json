@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "pnpm --filter @app/shared build && pnpm -r run test",
+    "test": "pnpm --filter @app/shared build && pnpm -r --workspace-concurrency=1 run test",
     "test:e2e": "pnpm --filter @app/e2e test:e2e"
   },
   "devDependencies": {
