@@ -1,5 +1,9 @@
 export const CAPTURE_FRAME_RATE = 30;
+export const CAPTURE_MAX_WIDTH = 1920;
+export const CAPTURE_MAX_HEIGHT = 1080;
 export const VIDEO_MAX_BITRATE_BPS = 2_000_000;
 export const VIDEO_MAX_FRAMERATE = 30;
 export const VIEWER_FAILURE_TIMEOUT_MS = 10_000;
+export const HOST_PEER_RECOVERY_DELAY_MS = 4_000;
+export const HOST_PEER_MAX_RECOVERIES = 3;
 export const REPOSITORY_URL = 'https://github.com/valeriocoelho1/transmicaodetela';

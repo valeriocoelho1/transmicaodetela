@@ -1,4 +1,4 @@
-import { CAPTURE_FRAME_RATE } from '../config';
+import { CAPTURE_FRAME_RATE, CAPTURE_MAX_HEIGHT, CAPTURE_MAX_WIDTH } from '../config';
 
 export const UNSUPPORTED_BROWSER_MESSAGE =
   'Este navegador não permite compartilhar a tela. Use um navegador de computador atualizado.';
@@ -34,7 +34,11 @@ interface DisplayCaptureHints {
 
 export async function startDisplayCapture(): Promise<MediaStream> {
   const options: DisplayMediaStreamOptions & DisplayCaptureHints = {
-    video: { frameRate: { ideal: CAPTURE_FRAME_RATE, max: CAPTURE_FRAME_RATE } },
+    video: {
+      frameRate: { ideal: CAPTURE_FRAME_RATE, max: CAPTURE_FRAME_RATE },
+      width: { max: CAPTURE_MAX_WIDTH },
+      height: { max: CAPTURE_MAX_HEIGHT },
+    },
     audio: true,
     selfBrowserSurface: 'exclude',
     surfaceSwitching: 'include',
