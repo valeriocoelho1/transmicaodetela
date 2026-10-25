@@ -262,6 +262,21 @@ Causa: o quadro `.stage__frame` tem proporção fixa de 16:9 e `overflow: hidden
 
 Mudanças em `styles.css`: o vídeo fica em `position: absolute; inset: 0` dentro do quadro; o `.stage` tem largura máxima calculada pela altura da janela (`--stage-reserved`: 21,75rem, ou 16,5rem em janelas com até 800 px de altura) e fica centralizado; em janelas baixas, o respiro do topo da página e a margem do título caem para 1,5rem.
 
+### Etapa 10: "É seguro?" e ligações curvas no diagrama (2026-10-25)
+
+Pedido: primeira pergunta do FAQ "É seguro?" (criptografia e código aberto, sem "mas"/"porém"); no diagrama, as ligações dos espectadores chegam todas à TV do anfitrião.
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm typecheck`, `lint`, `format:check`, build do web | exit 0 |
+| `pnpm --filter @app/web test` | 32/32 |
+| `pnpm test:e2e` | 11/11 |
+| Navegador, 1440 px e 375 px | três ligações saindo do mesmo ponto da TV (cima e baixo em curva, meio reta); sem rolagem horizontal. No celular a coluna das ligações era fixa em 2rem e espremia a curva: passou a ser flexível |
+
+Mudanças: as três barras retas viraram um único `<svg>` (`.direct__links`) com `preserveAspectRatio="none"` e `vector-effect: non-scaling-stroke`, para o tracejado manter 12/8 px em qualquer largura; as coordenadas dependem das linhas da grade (3 × 6,25rem com 1rem entre elas). `.direct__beam` removido.
+
+**Texto novo, para revisão:** "É seguro? — Sim. O vídeo vai criptografado do seu navegador direto para o de quem assiste e não fica gravado em lugar nenhum. O projeto é open source: o código está no GitHub para qualquer pessoa conferir. Quem tiver o link entra na sala, então envie só para quem deve assistir. Como a conexão é direta, vocês podem ver o endereço IP uns dos outros."
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
@@ -307,6 +322,7 @@ Registre aqui decisões tomadas que não estavam nos documentos (data, decisão,
 - 2026-10-23 (Fase 2) — `vite.config.ts` lê `WEB_PORT`/`API_PORT` com `loadEnv` do Vite, sem `@types/node` no web.
 - 2026-10-23 (Fase 2) — O script do pacote e2e chama-se `test:e2e` (não `test`), para o `pnpm test` da raiz não rodar o Playwright. Contextos do Playwright criados com `browser.newContext()` usam URL absoluta (não herdam `baseURL`).
 - 2026-10-23 (Fase 3) — **`--no-dtls` removido do coturn.** O flag não existe no coturn 4.18.0 (a imagem atual); um flag desconhecido faz o processo imprimir a ajuda e sair com `exit(-1)`, o que deixaria o contêiner reiniciando em loop. Nessa versão o DTLS só é ativado com `--dtls`, então o efeito pretendido se mantém.
+- 2026-10-25 (Etapa 10) — "Criptografado" é verdade para toda transmissão WebRTC (DTLS-SRTP é obrigatório nos navegadores; o TURN só repassa pacotes cifrados). "Open source" foi pedido pelo usuário, mas o repositório não tem arquivo `LICENSE`: sem licença, o código fica visível e não é open source no sentido legal. Adicionar uma licença ou ajustar o texto.
 - 2026-10-24 (Etapa 8) — Fonte pixel: Tiny5 (`@fontsource/tiny5`), no lugar da Pixelify Sans do primeiro canvas. O "C" maiúsculo da Pixelify é quase fechado e fica parecido com "O" (o problema era o desenho da letra, não o contorno); a Tiny5 tem o "C" aberto. Comparadas no navegador: Pixelify Sans, Jersey 10/15, Silkscreen, Tiny5, Micro 5, Bytesized, Handjet, DotGothic16, Workbench, Sixtyfour, VT323, Press Start 2P. Texto corrido em Rubik (`@fontsource-variable/rubik`). `@fontsource-variable/archivo` removida.
 - 2026-10-24 (Etapa 8) — Como a Tiny5 tem traço fino, os títulos de seção não usam contorno (que fechava as letras): sombra dura em vez disso; no fundo creme o título é escuro com sombra amarela.
 - 2026-10-24 (Etapa 8) — O app deixa de seguir o tema claro/escuro do sistema: o visual é fixo, como no canvas aprovado.
