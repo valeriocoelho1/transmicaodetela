@@ -6,3 +6,5 @@ allowBuilds:
   '@parcel/watcher': false
   esbuild: true
   unrs-resolver: false
+overrides:
+  multer: '>=2.5.0'
