@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import type { AppConfig } from './config/app-config';
+import { ConnectionLimiter } from './signaling/connection-limiter';
 import { SignalingIoAdapter } from './signaling/signaling-io.adapter';
 
 export function configureApp(app: NestExpressApplication, config: AppConfig): void {
@@ -8,5 +9,5 @@ export function configureApp(app: NestExpressApplication, config: AppConfig): vo
   app.set('trust proxy', config.trustProxy);
   app.setGlobalPrefix('api');
   app.enableCors({ origin: config.allowedOrigins });
-  app.useWebSocketAdapter(new SignalingIoAdapter(app, config));
+  app.useWebSocketAdapter(new SignalingIoAdapter(app, config, app.get(ConnectionLimiter)));
 }

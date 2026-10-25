@@ -1,6 +1,13 @@
 import type { HostJoinAck, ViewerJoinAck } from '@app/shared';
 import request from 'supertest';
-import { type ClientSocket, recordEvents, startApp, type TestApp, waitForEvent } from './helpers';
+import {
+  type ClientSocket,
+  recordEvents,
+  startApp,
+  type TestApp,
+  waitForEvent,
+  waitUntil,
+} from './helpers';
 
 // Mirrors the security checklist in docs/arquitetura/06-seguranca-e-limites.md.
 describe('Security checklist', () => {
@@ -119,5 +126,30 @@ describe('Security checklist', () => {
     expect(await disconnected).toBe('io server disconnect');
     const fresh = await t.connect();
     expect(fresh.connected).toBe(true);
+  });
+
+  it('refuses sockets above the per-address limit and frees the slot on disconnect', async () => {
+    t = await startApp({ MAX_SOCKETS_PER_IP: '2' });
+    const first = await t.connect();
+    await t.connect();
+    await expect(t.connect()).rejects.toThrow();
+    first.disconnect();
+    let replacement: ClientSocket | undefined;
+    await waitUntil(async () => {
+      replacement = await t.connect().catch(() => undefined);
+      return replacement !== undefined;
+    });
+    expect(replacement?.connected).toBe(true);
+  });
+
+  it('counts the client address from X-Forwarded-For behind one trusted proxy', async () => {
+    t = await startApp({ MAX_SOCKETS_PER_IP: '1', TRUST_PROXY: '1' });
+    const asA = { headers: { 'x-forwarded-for': '203.0.113.10' } };
+    await t.connect(asA);
+    await expect(t.connect(asA)).rejects.toThrow();
+    const forgedThenA = { headers: { 'x-forwarded-for': '198.51.100.1, 203.0.113.10' } };
+    await expect(t.connect(forgedThenA)).rejects.toThrow();
+    const asB = await t.connect({ headers: { 'x-forwarded-for': '203.0.113.20' } });
+    expect(asB.connected).toBe(true);
   });
 });

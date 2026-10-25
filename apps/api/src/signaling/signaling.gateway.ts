@@ -25,6 +25,7 @@ import {
 import type { Server, Socket } from 'socket.io';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
 import { RoomsService } from '../rooms/rooms.service';
+import { ConnectionLimiter } from './connection-limiter';
 import { IceService } from './ice.service';
 
 interface SocketData {
@@ -51,6 +52,7 @@ export class SignalingGateway
   constructor(
     private readonly rooms: RoomsService,
     private readonly ice: IceService,
+    private readonly limiter: ConnectionLimiter,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly now: Clock,
   ) {}
@@ -65,6 +67,11 @@ export class SignalingGateway
   }
 
   handleConnection(socket: AppSocket): void {
+    if (!this.limiter.acquire(socket.id, this.limiter.ipOf(socket.request))) {
+      this.logger.warn('Too many sockets from one address; disconnecting');
+      socket.disconnect(true);
+      return;
+    }
     let windowStart = this.now();
     let count = 0;
     socket.use((_packet, next) => {
@@ -84,6 +91,7 @@ export class SignalingGateway
   }
 
   handleDisconnect(socket: AppSocket): void {
+    this.limiter.release(socket.id);
     this.leave(socket);
   }
 
