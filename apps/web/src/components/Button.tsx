@@ -7,6 +7,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: 'md' | 'lg';
   icon?: IconName;
+  trailingIcon?: IconName;
   busy?: boolean;
 }
 
@@ -14,6 +15,7 @@ export function Button({
   variant = 'secondary',
   size = 'md',
   icon,
+  trailingIcon,
   busy = false,
   className,
   children,
@@ -27,6 +29,7 @@ export function Button({
     <button type={type} className={classes} aria-busy={busy || undefined} {...rest}>
       {busy ? <span className="spinner" aria-hidden="true" /> : icon && <Icon name={icon} />}
       <span>{children}</span>
+      {!busy && trailingIcon && <Icon name={trailingIcon} />}
     </button>
   );
 }

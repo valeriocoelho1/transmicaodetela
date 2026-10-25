@@ -141,7 +141,7 @@ export function HomePage() {
             <Button
               variant="primary"
               size="lg"
-              icon="select"
+              trailingIcon="arrowRight"
               busy={creating}
               disabled={creating}
               onClick={() => void handleCreate()}

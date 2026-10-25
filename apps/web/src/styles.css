@@ -83,12 +83,16 @@ p {
 }
 
 h1,
-h2,
-h3 {
+h2 {
   font-family: var(--font-pixel);
   font-weight: 400;
   line-height: 1.1;
   letter-spacing: 0.02em;
+}
+
+h3 {
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 a {
@@ -199,9 +203,8 @@ input {
     var(--pixel-outline),
     inset -3px -4px 0 0 rgb(0 0 0 / 25%),
     var(--btn-drop);
-  font-family: var(--font-pixel);
-  font-size: 1.1875rem;
-  font-weight: 400;
+  font-size: 1.0625rem;
+  font-weight: 700;
   line-height: 1.1;
   text-decoration: none;
   cursor: pointer;
@@ -225,8 +228,8 @@ input {
 
 .btn--lg {
   min-height: 4.5rem;
-  padding: 1.25rem 2.5rem;
-  font-size: 1.875rem;
+  padding: 1.25rem 2.25rem;
+  font-size: 1.5rem;
 }
 
 .btn--sm {
@@ -280,8 +283,10 @@ input {
 .card__title {
   margin-bottom: var(--space-4);
   color: var(--soft);
-  font-size: 1.375rem;
-  font-weight: 400;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .callout {
@@ -322,9 +327,8 @@ input {
   margin: var(--px);
   padding: 0.5rem 0.875rem;
   background: var(--surface);
-  font-family: var(--font-pixel);
-  font-size: 1.1875rem;
-  font-weight: 400;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .status-pill__dot {
@@ -504,10 +508,10 @@ input {
   border: 0;
   background: transparent;
   color: var(--fg);
-  font-family: var(--font-pixel);
   font-size: 1.0625rem;
   text-overflow: ellipsis;
   outline: none;
+  font-weight: 400;
 }
 
 .viewer-count {
@@ -716,8 +720,8 @@ input {
     0 0,
     100% 0;
   animation:
-    selection-draw 1.9s steps(24, end) 0.7s both,
-    selection-ants 0.8s steps(4, end) 2.6s infinite;
+    selection-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.6s both,
+    selection-ants 1.2s linear 2.3s infinite;
 }
 
 .selection__tag {
@@ -731,9 +735,8 @@ input {
     0 4px 0 0 var(--ink),
     -4px 0 0 0 var(--ink),
     4px 0 0 0 var(--ink);
-  font-family: var(--font-pixel);
   font-size: 1rem;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
 }
@@ -768,7 +771,7 @@ input {
 
 .selection__tag,
 .selection__handle {
-  animation: fade-in 0.4s steps(3, end) 2.5s both;
+  animation: fade-in 0.5s ease-out 2.1s both;
 }
 
 .selection__cursor {
@@ -776,8 +779,8 @@ input {
   right: -22px;
   bottom: -40px;
   animation:
-    cursor-in 0.35s steps(3, end) 0.35s both,
-    cursor-out 0.5s steps(4, end) 2.9s forwards;
+    cursor-in 0.4s ease-out 0.2s both,
+    cursor-out 0.6s ease-in 2.5s forwards;
 }
 
 /* Sections */
@@ -860,7 +863,7 @@ input {
 
 .steps__item h3 {
   margin-top: 0.625rem;
-  font-size: 1.75rem;
+  font-size: 1.5rem;
 }
 
 .steps__item p {
@@ -876,9 +879,9 @@ input {
   padding: 0.625rem 0.875rem;
   background: var(--ink);
   color: var(--accent);
-  font-family: var(--font-pixel);
   font-size: 1.0625rem;
   overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 /* Direct connection diagram */
@@ -916,9 +919,8 @@ input {
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  font-family: var(--font-pixel);
-  font-size: 1.375rem;
-  font-weight: 400;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .direct__host-tv {
@@ -972,8 +974,8 @@ input {
 
 .direct__server strong {
   color: var(--cream);
-  font-family: var(--font-pixel);
   font-size: 1.125rem;
+  font-weight: 700;
 }
 
 /* FAQ */
@@ -1033,9 +1035,8 @@ input {
   justify-content: space-between;
   gap: 1.25rem;
   padding: 1.25rem 1.375rem;
-  font-family: var(--font-pixel);
-  font-size: 1.375rem;
-  font-weight: 400;
+  font-size: 1.1875rem;
+  font-weight: 600;
   list-style: none;
   cursor: pointer;
 }
@@ -1295,6 +1296,7 @@ input {
 @keyframes cursor-in {
   from {
     opacity: 0;
+    transform: translate(-6px, -6px);
   }
 }
 
