@@ -36,6 +36,11 @@ const steps = [
 
 const questions = [
   {
+    question: 'É seguro?',
+    answer:
+      'Sim. O vídeo vai criptografado do seu navegador direto para o de quem assiste e não fica gravado em lugar nenhum. O projeto é open source: o código está no GitHub para qualquer pessoa conferir. Quem tiver o link entra na sala, então envie só para quem deve assistir. Como a conexão é direta, vocês podem ver o endereço IP uns dos outros.',
+  },
+  {
     question: 'Quantas pessoas podem assistir?',
     answer:
       'Cada sala tem um limite de espectadores ao mesmo tempo. A página da sala mostra esse limite e quantas pessoas estão assistindo agora.',
@@ -85,9 +90,12 @@ function DirectDiagram() {
         <PixelSprite name="tv" size={200} className="direct__host-tv" />
         <span>Anfitrião</span>
       </div>
-      {[1, 2, 3].map((row) => (
-        <div key={`beam-${row}`} className="direct__beam" style={{ gridRow: row }} />
-      ))}
+      {/* All links start at the host's screen (middle row) and end at each viewer's row center. */}
+      <svg className="direct__links" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <path d="M0 50 C50 50 50 15.06 100 15.06" />
+        <path d="M0 50 H100" />
+        <path d="M0 50 C50 50 50 84.94 100 84.94" />
+      </svg>
       {[1, 2, 3].map((row) => (
         <div key={`viewer-${row}`} className="direct__viewer" style={{ gridRow: row }}>
           <PixelSprite name="tv" size={72} />

@@ -940,12 +940,20 @@ input {
   height: auto;
 }
 
-.direct__beam {
+.direct__links {
   grid-column: 2;
-  align-self: center;
-  height: 4px;
-  background-image: linear-gradient(90deg, var(--accent) 60%, transparent 60%);
-  background-size: 20px 4px;
+  grid-row: 1 / 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-dasharray: 12 8;
+}
+
+.direct__links path {
+  vector-effect: non-scaling-stroke;
 }
 
 .direct__viewer {
@@ -1224,7 +1232,7 @@ input {
   }
 
   .direct {
-    grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
   }
 
   .direct__viewer {
