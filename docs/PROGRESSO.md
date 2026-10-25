@@ -206,6 +206,19 @@ Mudanças:
 
 **Textos novos, para revisão:** "Quer contribuir?" e "Abra uma issue ou envie um pull request no repositório do projeto.", com o botão "link" (nome acessível "link do repositório no GitHub"); "Tela inteira" (decorativo); "N de M lugares ocupados" (só para leitor de tela).
 
+### Etapa 9: legibilidade, animação suave e botão com seta (2026-10-24)
+
+Pedido: fonte pixel mais fácil de ler, abertura da seleção mais suave, botão "Criar sala" com uma setinha ao lado.
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm typecheck`, `lint`, `format:check`, `build` | exit 0 |
+| `pnpm --filter @app/web test` | 24/24 |
+| `pnpm test:e2e` | 11/11 (a primeira tentativa não rodou: o servidor do Playwright passou de 120 s para subir durante um pico de carga da máquina; `nest build` isolado levou 1,8 s logo depois e a segunda rodada passou) |
+| Navegador, 1440 px e painel padrão | seleção abrindo de forma contínua com o cursor; "Criar sala" com seta; subtítulos, perguntas, botões e rótulos em Rubik |
+
+Mudanças: a Tiny5 fica só em textos grandes (h1, títulos de seção, título da página, número de espectadores, números dos passos, marca, "Quer contribuir?", nome do repositório); `h3`, títulos de cartão, botões, perguntas, etiqueta da seleção, selo de status, campo do link e rótulos do diagrama passam para Rubik. A abertura da seleção usa `cubic-bezier` e `ease` em vez de `steps()`; as formigas da borda andam de forma linear. `Button` ganhou `trailingIcon`; o ícone `select` saiu por não ter mais uso.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
