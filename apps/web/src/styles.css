@@ -353,9 +353,18 @@ input {
 /* ---------- Stage (TV around the video) ---------- */
 
 .stage {
+  /* The 16:9 frame never gets taller than the window minus what sits above it (page padding,
+     head, TV border) and below it (knobs, control bar). The page's bottom padding may scroll. */
+  --stage-reserved: 21.75rem;
   display: grid;
   gap: var(--space-6);
   align-content: start;
+  width: 100%;
+  max-width: max(
+    20rem,
+    calc((100svh - var(--stage-reserved)) * 16 / 9 + 2 * var(--space-4) + 2 * var(--px) + 8px)
+  );
+  margin-inline: auto;
 }
 
 .tv {
@@ -392,6 +401,8 @@ input {
 }
 
 .stage__frame video {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -1304,6 +1315,20 @@ input {
   to {
     opacity: 0;
     transform: translate(12px, 12px);
+  }
+}
+
+@media (max-height: 800px) {
+  .container {
+    padding-top: var(--space-5);
+  }
+
+  .page-head {
+    margin-bottom: var(--space-5);
+  }
+
+  .stage {
+    --stage-reserved: 16.5rem;
   }
 }
 

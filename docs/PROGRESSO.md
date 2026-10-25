@@ -248,10 +248,25 @@ Mudanças:
 - **Web:** captura com `max` de 1920×1080; VP9 preferido via `setCodecPreferences`; o `HostBroadcaster` recria o peer em `failed` (na hora) e em `disconnected` (depois de 4 s), até 3 vezes seguidas.
 - **Docs:** README (publicar versão, rollback, manutenção), `CHANGELOG.md`, `02-backend`, `03-frontend`, `05-infraestrutura` (Caddyfile atual e notas do coturn) e `06-seguranca-e-limites`.
 
+### Etapa 11: vídeo cortado em telas fora de 16:9 (2026-10-25)
+
+Pedido: o espectador via a tela compartilhada cortada embaixo (tela de Mac, 16:10) e precisava rolar para chegar em "Tela cheia".
+
+Causa: o quadro `.stage__frame` tem proporção fixa de 16:9 e `overflow: hidden`, e o `<video>` dentro dele, item de grid com `height: 100%`, ficava com a altura natural da imagem. Qualquer fonte mais alta que 16:9 passava do quadro e era cortada; o `object-fit: contain` não agia porque o próprio elemento era maior que o quadro. A mesma coisa acontecia no preview do anfitrião.
+
+| Verificação | Resultado |
+| --- | --- |
+| Teste temporário (apagado depois): anfitrião compartilhando um canvas de 1600×1000, 1000×1400 e 2400×800; medidas do quadro e do vídeo no espectador | **Antes:** em 1000×565, 16:10 dava vídeo de 890×556 num quadro de 890×501 (55 px cortados), e a tela em pé dava 890×1246 (mais da metade cortada); a página tinha 903 px de altura numa janela de 565. **Depois:** vídeo do tamanho do quadro nos três casos, imagem inteira com faixas pretas, barra de controles dentro da janela em 1000×565, 1440×900, 1920×1080 e 390×844 (celular), alinhada com a TV. Anfitrião: preview inteiro, mesmo layout de duas colunas |
+| `pnpm --filter @app/web test`, `lint`, `format:check` | 32/32, exit 0 |
+| `pnpm test:e2e` | 11/11 |
+
+Mudanças em `styles.css`: o vídeo fica em `position: absolute; inset: 0` dentro do quadro; o `.stage` tem largura máxima calculada pela altura da janela (`--stage-reserved`: 21,75rem, ou 16,5rem em janelas com até 800 px de altura) e fica centralizado; em janelas baixas, o respiro do topo da página e a margem do título caem para 1,5rem.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
 
+- 2026-10-25 (Etapa 11) — A margem de baixo da página fica fora da conta da altura do vídeo: em janela baixa ela pode exigir rolagem, mas o vídeo e os controles ficam visíveis. Abaixo de 20rem de largura a TV para de encolher, para não virar um selo em janelas muito baixas.
 - 2026-10-25 (Etapa 10) — `overrides` do pnpm para o `multer`, ao contrário da Fase 4 ("sem overrides"): a última versão do `@nestjs/platform-express` (12.2.0) fixa `multer` 2.4.0, que é vulnerável, e não existe versão do Nest que resolva isso.
 - 2026-10-25 (Etapa 10) — Recuperação do peer recriando a conexão (nova oferta), não com ICE restart na mesma conexão: o `ViewerReceiver` troca o peer a cada oferta, então recriar mantém o protocolo e o anfitrião como único ofertante. Custo: um piscar no vídeo do espectador durante a recuperação.
 - 2026-10-25 (Etapa 10) — VP9 preferido, não AV1: o AV1 é codificado por software e pesa demais com um encoder por espectador. O VP9 só vai primeiro se o navegador declarar que consegue enviá-lo; os demais codecs ficam como reserva (Safari antigo cai em H.264 ou VP8).
