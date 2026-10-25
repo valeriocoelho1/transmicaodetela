@@ -39,8 +39,11 @@ apps/web/src/
 | Constante | Valor | Uso |
 | --- | --- | --- |
 | `CAPTURE_FRAME_RATE` | `30` | `frameRate` pedido ao `getDisplayMedia` |
+| `CAPTURE_MAX_WIDTH` / `CAPTURE_MAX_HEIGHT` | `1920` / `1080` | Limite (`max`) da resolução de captura. Telas maiores (Retina, 4K) são reduzidas pelo navegador, o que mantém o FPS dentro dos 2 Mbps e poupa CPU, já que o anfitrião codifica uma vez por espectador |
 | `VIDEO_MAX_BITRATE_BPS` | `2_000_000` | `maxBitrate` no `RTCRtpSender` |
 | `VIDEO_MAX_FRAMERATE` | `30` | `maxFramerate` no `RTCRtpSender` |
+| `HOST_PEER_RECOVERY_DELAY_MS` | `4_000` | Quanto tempo um peer pode ficar `disconnected` antes de o anfitrião recriá-lo |
+| `HOST_PEER_MAX_RECOVERIES` | `3` | Recriações seguidas sem chegar a `connected` antes de desistir do peer |
 
 ## Captura de tela (`lib/capture.ts`)
 
@@ -92,10 +95,11 @@ Criação de um peer, nesta ordem (validada em protótipo):
 
 1. `new RTCPeerConnection({ iceServers })`.
 2. `stream.getTracks().forEach(t => pc.addTrack(t, stream))`.
-3. No sender de vídeo: `getParameters()`, garantir `encodings[0]`, definir `maxBitrate` e `maxFramerate`, `setParameters()`.
-4. `pc.onicecandidate`: se `e.candidate`, emitir `signal:ice { viewerId, candidate: e.candidate.toJSON() }`.
-5. `pc.onconnectionstatechange`: em `failed`, fechar e remover o peer e avisar a UI.
-6. `createOffer()`, `setLocalDescription(offer)`, emitir `signal:offer { viewerId, sdp: pc.localDescription.toJSON() }`.
+3. Preferência de codec: se o navegador consegue enviar VP9, `setCodecPreferences` no transceiver de vídeo com a lista de `RTCRtpReceiver.getCapabilities('video')` reordenada com VP9 primeiro (os outros codecs ficam, na ordem original, como reserva para quem não decodifica VP9). VP9 comprime texto e telas melhor que o VP8 padrão.
+4. No sender de vídeo: `getParameters()`, garantir `encodings[0]`, definir `maxBitrate` e `maxFramerate`, `setParameters()`.
+5. `pc.onicecandidate`: se `e.candidate`, emitir `signal:ice { viewerId, candidate: e.candidate.toJSON() }`.
+6. `pc.onconnectionstatechange`: em `failed`, recriar o peer na hora (nova oferta); em `disconnected`, recriar se não voltar a `connected` em `HOST_PEER_RECOVERY_DELAY_MS`. Depois de `HOST_PEER_MAX_RECOVERIES` recriações seguidas sem conexão, fechar o peer e avisar a UI (`peerFailed`); o espectador cai no estado "falhou" e pode tentar de novo. Chegar a `connected` zera a contagem. Como o espectador sempre troca o peer ao receber oferta, a recuperação mantém o anfitrião como único ofertante.
+7. `createOffer()`, `setLocalDescription(offer)`, emitir `signal:offer { viewerId, sdp: pc.localDescription.toJSON() }`.
 
 O anfitrião é sempre o ofertante. Nunca crie oferta no espectador.
 

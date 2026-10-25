@@ -12,9 +12,11 @@ O MVP não tem contas nem senha de sala: **quem tem o link, entra**. A seguranç
 | Criação em massa de salas | `POST /api/rooms` com limite de 10 por minuto por IP. `MAX_ROOMS` global. Salas expiram (nunca usada: 15 min; sem anfitrião: 60 s; idade máxima: 12 h) |
 | Payload gigante ou malformado | `maxHttpBufferSize` de 64 KB, schemas zod com tamanhos máximos, limite de eventos por socket |
 | Sequestro de WebSocket entre sites | Verificação de `Origin` em `allowRequest` contra `ALLOWED_ORIGINS` |
-| coturn usado como relay aberto | Credenciais temporárias (HMAC com segredo compartilhado), `--denied-peer-ip` para faixas privadas, cotas por usuário e totais, sem CLI |
+| Muitos sockets de um só lugar (ocupar as vagas de uma sala, esgotar a API) | No máximo `MAX_SOCKETS_PER_IP` sockets simultâneos por endereço do cliente, contado pelo `X-Forwarded-For` que o Caddy acrescenta |
+| coturn usado como relay aberto | Credenciais temporárias (HMAC com segredo compartilhado), `--denied-peer-ip` para faixas privadas, cotas por usuário e totais, sem relay TCP (`--no-tcp-relay`), banda por sessão limitada (`--max-bps`), faixas IPv6 privadas negadas, sem CLI |
 | Segredos no repositório | `.env` no `.gitignore`. `.env.example` só com placeholders. `TURN_SECRET` só por variável de ambiente |
-| XSS | React escapa texto. Não usar `dangerouslySetInnerHTML`. A interface não renderiza texto vindo de outros usuários |
+| XSS | React escapa texto. Não usar `dangerouslySetInnerHTML`. A interface não renderiza texto vindo de outros usuários. `Content-Security-Policy` no Caddy só aceita script, estilo e conexões da própria origem |
+| Rebaixamento para HTTP | `Strict-Transport-Security` no Caddy, além do redirecionamento para HTTPS |
 | Clickjacking | `X-Frame-Options: DENY` no Caddy |
 | Vazamento de dados em log | Proibido logar SDP, candidatos ICE, `hostToken` e `TURN_SECRET` |
 | Contêiner com privilégio demais | API roda com usuário não root |
@@ -35,6 +37,8 @@ Em WebRTC direto, as duas pontas trocam candidatos ICE, que contêm endereços I
 | Idade máxima da sala | 12 h | `ROOM_MAX_AGE_MS` |
 | Tamanho de mensagem do socket | 64 KB | `maxHttpBufferSize` |
 | Eventos por socket | 300 a cada 10 s | `SOCKET_RATE_LIMIT_*` |
+| Sockets por endereço | 20 simultâneos | `MAX_SOCKETS_PER_IP` |
+| Banda por sessão TURN | ~3 Mbps em cada sentido | `--max-bps` do coturn |
 | Bitrate de vídeo por espectador | 2 Mbps | `VIDEO_MAX_BITRATE_BPS` |
 | Credencial TURN | 12 h | `TURN_CREDENTIAL_TTL_SECONDS` |
 

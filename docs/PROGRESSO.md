@@ -13,6 +13,7 @@ O Claude Code atualiza este arquivo ao fim de cada fase. Não apague o históric
 | 4 | Endurecimento e entrega | concluída (tag `v0.1.0`) | `0348db4` |
 
 | 5 | Interface: landing page e estilo (pedida depois do MVP, branch `feat/ui-landing-and-styles`) | concluída | `5e1dec6` |
+| 10 | Revisão para o lançamento: segurança, qualidade de vídeo, operação | concluída (pendências humanas abaixo) | ver Etapa 10 |
 Status possíveis: `pendente`, `em andamento`, `concluída`, `concluída com ressalvas` (explique abaixo).
 
 ## Verificações executadas
@@ -219,9 +220,45 @@ Pedido: fonte pixel mais fácil de ler, abertura da seleção mais suave, botão
 
 Mudanças: a Tiny5 fica só em textos grandes (h1, títulos de seção, título da página, número de espectadores, números dos passos, marca, "Quer contribuir?", nome do repositório); `h3`, títulos de cartão, botões, perguntas, etiqueta da seleção, selo de status, campo do link e rótulos do diagrama passam para Rubik. A abertura da seleção usa `cubic-bezier` e `ease` em vez de `steps()`; as formigas da borda andam de forma linear. `Button` ganhou `trailingIcon`; o ícone `select` saiu por não ter mais uso.
 
+### Etapa 10: revisão para o lançamento (2026-10-25, branch `feat/ui-landing-and-styles`)
+
+Pedido: varredura de arquitetura, conexão, qualidade, hospedagem, versões e segurança, e resolver tudo o que fosse possível sem uma pessoa.
+
+| Verificação | Resultado |
+| --- | --- |
+| `pnpm audit` antes | **1 alta**: `multer` 2.4.0 (GHSA-q7qp-rjg7-q26m), fixado por `@nestjs/platform-express` 12.2.0, que é a última versão |
+| `pnpm audit` depois do override | No known vulnerabilities found |
+| Flags novos do coturn (`turnserver --help` na imagem `coturn/coturn:4.18.0-r0`) | `--no-tcp-relay`, `--max-bps` e `--denied-peer-ip` existem |
+| `caddy validate` (imagem `caddy:2-alpine`) | Valid configuration |
+| `pnpm typecheck`, `lint`, `format:check`, `build` | exit 0 |
+| `pnpm test` | shared 13, web 32 (8 novos do `HostBroadcaster`), api 62 (5 novos do limite de sockets) |
+| `pnpm test:e2e` | 11/11 |
+| Codec negociado (teste temporário, apagado depois, lendo `getStats` do espectador no Chromium) | `video/VP9` |
+| Stack de produção no Docker (`.env` temporário, `DOMAIN=localhost`, apagado no fim) | `config` ok; build ok, imagens `transmicaodetela-api:0.2.0-check` e `transmicaodetela-web:0.2.0-check` (removidas no fim); api healthy; `/` com CSP, HSTS e `Cache-Control: no-cache`; `/assets/*.js` com `public, max-age=31536000, immutable`; coturn com 0 `ERROR` e `--no-tcp-relay: TCP relay endpoints are not allowed` no log |
+| `E2E_BASE_URL=https://localhost pnpm test:e2e` + teste temporário de CSP (landing, sala ao vivo e espectador assistindo) | 11 passaram, 0 violações de CSP, fontes carregadas. O cenário 8 falhou como esperado: ele supõe `ROOM_HOST_GRACE_MS=3000` (servidor do e2e) e a stack usa os 60 s padrão |
+| Testes instáveis com a máquina carregada | Na primeira rodada da varredura, `pnpm test` falhou (timeout do worker do Vitest e 3 testes da API) e passou ao repetir. O Vitest gastava 96% do tempo criando o jsdom em todo arquivo; agora o ambiente padrão é `node` e só os 2 arquivos que usam DOM pedem jsdom: de ~25 s para ~1,2 s |
+
+Mudanças:
+
+- **Dependência:** `overrides: multer: '>=2.5.0'` em `pnpm-workspace.yaml`. Retirar quando o Nest publicar uma versão com o `multer` corrigido.
+- **Caddy:** `Content-Security-Policy`, `Strict-Transport-Security` (1 ano, sem `includeSubDomains`), `Cache-Control` (`no-cache` fora de `/assets`, `immutable` em `/assets`).
+- **coturn:** `--no-tcp-relay`, `--max-bps=375000` e `--denied-peer-ip` para `::1`, IPv4 mapeado, NAT64, `fc00::/7` e `fe80::/10`.
+- **Compose:** imagens `transmicaodetela-api` e `transmicaodetela-web` com a tag `${APP_VERSION:-latest}`; `APP_VERSION` no `.env.example`.
+- **API:** `ConnectionLimiter` (`MAX_SOCKETS_PER_IP`, padrão 20): handshake recusado no limite, vaga liberada na desconexão, endereço calculado como o `trust proxy` do Express.
+- **Web:** captura com `max` de 1920×1080; VP9 preferido via `setCodecPreferences`; o `HostBroadcaster` recria o peer em `failed` (na hora) e em `disconnected` (depois de 4 s), até 3 vezes seguidas.
+- **Docs:** README (publicar versão, rollback, manutenção), `CHANGELOG.md`, `02-backend`, `03-frontend`, `05-infraestrutura` (Caddyfile atual e notas do coturn) e `06-seguranca-e-limites`.
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
+
+- 2026-10-25 (Etapa 10) — `overrides` do pnpm para o `multer`, ao contrário da Fase 4 ("sem overrides"): a última versão do `@nestjs/platform-express` (12.2.0) fixa `multer` 2.4.0, que é vulnerável, e não existe versão do Nest que resolva isso.
+- 2026-10-25 (Etapa 10) — Recuperação do peer recriando a conexão (nova oferta), não com ICE restart na mesma conexão: o `ViewerReceiver` troca o peer a cada oferta, então recriar mantém o protocolo e o anfitrião como único ofertante. Custo: um piscar no vídeo do espectador durante a recuperação.
+- 2026-10-25 (Etapa 10) — VP9 preferido, não AV1: o AV1 é codificado por software e pesa demais com um encoder por espectador. O VP9 só vai primeiro se o navegador declarar que consegue enviá-lo; os demais codecs ficam como reserva (Safari antigo cai em H.264 ou VP8).
+- 2026-10-25 (Etapa 10) — `MAX_SOCKETS_PER_IP` = 20: o uso legítimo é de 1 socket por aba, e no 4G muita gente divide o mesmo IP (CGNAT), então o limite tem folga. O IP recusado não vai para o log.
+- 2026-10-25 (Etapa 10) — `--max-bps=375000` (≈ 3 Mbps por sessão): o vídeo usa no máximo 2 Mbps mais o áudio e as retransmissões.
+- 2026-10-25 (Etapa 10) — HSTS sem `includeSubDomains` e sem `preload`: o domínio ainda não existe e outros subdomínios dele podem não ter HTTPS.
+- 2026-10-25 (Etapa 10) — Vitest com ambiente padrão `node` e `// @vitest-environment jsdom` em `host-token.test.ts` e `HomePage.test.tsx`.
 
 - 2026-10-23 — `.nvmrc` = `24` e `engines.node` = `>=24`: a LTS ativa no nodejs.org é a 24 ("Krypton"); a 26 ainda é Current. `@types/node` fixado em `^24` pelo mesmo motivo. A máquina local roda Node 26.0.0 e foi nela que tudo foi verificado.
 - 2026-10-23 — `typescript` em `~6.0` (6.0.3), não a 7.0.2 (`latest`): typescript-eslint 8.72 exige `<6.1.0` e ts-jest 29.4 exige `<7`.
@@ -313,6 +350,9 @@ Consulte o guia de hospedagem, domínio e operação. Marque aqui o que já foi 
 
 - [x] Instalar Docker localmente e rodar a "Verificação" da Fase 3
 - [ ] Teste manual com tela real da Fase 2 (roteiro acima)
+- [ ] Teste manual da Etapa 10: compartilhar uma tela Retina/4K e conferir que o vídeo fica fluido; derrubar o Wi-Fi do espectador por uns 10 s e conferir que o vídeo volta sozinho
+- [ ] Decidir o merge da `feat/ui-landing-and-styles` na `main`, enviar `main` e tags ao GitHub e criar a tag `v0.2.0`
+- [ ] Política de privacidade e termos de uso, se o site for divulgado (os logs do Caddy e do coturn têm IPs)
 - [ ] Conta na nuvem criada e alerta de custo configurado
 - [ ] Domínio registrado
 - [ ] VM criada com IP fixo e portas liberadas

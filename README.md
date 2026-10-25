@@ -53,26 +53,27 @@ pnpm dev
 
 Todas têm padrão, exceto as marcadas. A configuração é validada na partida; valor inválido impede a API de subir, com mensagem clara.
 
-| Variável                      | Padrão                         | Descrição                                                                             |
-| ----------------------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
-| `NODE_ENV`                    | `development`                  | `development`, `test` ou `production`                                                 |
-| `PORT`                        | `3000`                         | Porta HTTP                                                                            |
-| `ALLOWED_ORIGINS`             | `http://localhost:5173`        | Origens permitidas (CORS e Socket.IO), separadas por vírgula. Obrigatória em produção |
-| `TRUST_PROXY`                 | `0`                            | Número de proxies confiáveis à frente da API (1 atrás do Caddy)                       |
-| `MAX_VIEWERS_PER_ROOM`        | `5`                            | Espectadores simultâneos por sala                                                     |
-| `MAX_ROOMS`                   | `50`                           | Salas simultâneas no servidor                                                         |
-| `ROOM_HOST_GRACE_MS`          | `60000`                        | Tempo para o anfitrião voltar antes de a sala ser encerrada                           |
-| `ROOM_UNUSED_TTL_MS`          | `900000`                       | Sala em que o anfitrião nunca entrou é apagada após esse tempo                        |
-| `ROOM_MAX_AGE_MS`             | `43200000`                     | Vida máxima de uma sala (12 h)                                                        |
-| `SWEEP_INTERVAL_MS`           | `30000`                        | Intervalo da varredura de salas expiradas                                             |
-| `STUN_URLS`                   | `stun:stun.l.google.com:19302` | Lista separada por vírgula                                                            |
-| `TURN_URLS`                   | vazio                          | Lista separada por vírgula. Se definida, `TURN_SECRET` é obrigatório                  |
-| `TURN_SECRET`                 | vazio                          | Segredo compartilhado com o coturn. Obrigatório em produção                           |
-| `TURN_CREDENTIAL_TTL_SECONDS` | `43200`                        | Validade das credenciais TURN (12 h)                                                  |
-| `SOCKET_RATE_LIMIT_EVENTS`    | `300`                          | Eventos permitidos por socket na janela                                               |
-| `SOCKET_RATE_LIMIT_WINDOW_MS` | `10000`                        | Janela do limite acima                                                                |
+| Variável                      | Padrão                         | Descrição                                                                               |
+| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
+| `NODE_ENV`                    | `development`                  | `development`, `test` ou `production`                                                   |
+| `PORT`                        | `3000`                         | Porta HTTP                                                                              |
+| `ALLOWED_ORIGINS`             | `http://localhost:5173`        | Origens permitidas (CORS e Socket.IO), separadas por vírgula. Obrigatória em produção   |
+| `TRUST_PROXY`                 | `0`                            | Número de proxies confiáveis à frente da API (1 atrás do Caddy)                         |
+| `MAX_VIEWERS_PER_ROOM`        | `5`                            | Espectadores simultâneos por sala                                                       |
+| `MAX_ROOMS`                   | `50`                           | Salas simultâneas no servidor                                                           |
+| `ROOM_HOST_GRACE_MS`          | `60000`                        | Tempo para o anfitrião voltar antes de a sala ser encerrada                             |
+| `ROOM_UNUSED_TTL_MS`          | `900000`                       | Sala em que o anfitrião nunca entrou é apagada após esse tempo                          |
+| `ROOM_MAX_AGE_MS`             | `43200000`                     | Vida máxima de uma sala (12 h)                                                          |
+| `SWEEP_INTERVAL_MS`           | `30000`                        | Intervalo da varredura de salas expiradas                                               |
+| `STUN_URLS`                   | `stun:stun.l.google.com:19302` | Lista separada por vírgula                                                              |
+| `TURN_URLS`                   | vazio                          | Lista separada por vírgula. Se definida, `TURN_SECRET` é obrigatório                    |
+| `TURN_SECRET`                 | vazio                          | Segredo compartilhado com o coturn. Obrigatório em produção                             |
+| `TURN_CREDENTIAL_TTL_SECONDS` | `43200`                        | Validade das credenciais TURN (12 h)                                                    |
+| `SOCKET_RATE_LIMIT_EVENTS`    | `300`                          | Eventos permitidos por socket na janela                                                 |
+| `SOCKET_RATE_LIMIT_WINDOW_MS` | `10000`                        | Janela do limite acima                                                                  |
+| `MAX_SOCKETS_PER_IP`          | `20`                           | Sockets simultâneos por endereço do cliente (atrás do proxy, lido do `X-Forwarded-For`) |
 
-Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.env` (veja `.env.example`): `DOMAIN`, `TURN_SECRET`, `PUBLIC_IP`, `PRIVATE_IP` e, opcionalmente, `MAX_VIEWERS_PER_ROOM`.
+Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.env` (veja `.env.example`): `DOMAIN`, `TURN_SECRET`, `PUBLIC_IP`, `PRIVATE_IP`, `APP_VERSION` e, opcionalmente, `MAX_VIEWERS_PER_ROOM`.
 
 ## Limites do MVP
 
@@ -111,6 +112,34 @@ Encerrar todas as salas de emergência:
 ```bash
 docker compose -f docker-compose.prod.yml restart api
 ```
+
+### Publicar uma versão nova
+
+Cada versão é uma tag `vX.Y.Z` na `main` (SemVer), descrita no [`CHANGELOG.md`](CHANGELOG.md). Na VM:
+
+```bash
+git fetch --tags && git checkout vX.Y.Z
+```
+
+Troque `APP_VERSION` no `.env` para `X.Y.Z` e rode:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+- Reiniciar a `api` encerra todas as salas (o estado é em memória). Publique em horário vazio.
+- Se só o front mudou, `docker compose -f docker-compose.prod.yml up -d --build web` troca só o Caddy: os sockets caem por um instante, reconectam e as salas continuam (tolerância de 60 s do anfitrião).
+- `index.html` vai com `Cache-Control: no-cache` e `/assets/*` com `immutable`, então quem abrir a página depois do deploy recebe a versão nova. Mantenha os eventos de `@app/shared` compatíveis entre versões vizinhas: uma aba aberta antes do deploy continua com o front antigo até recarregar.
+
+Voltar para a versão anterior (as imagens ficam guardadas com a tag da versão, não precisa reconstruir):
+
+```bash
+git checkout vX.Y.W
+```
+
+Troque `APP_VERSION` para `X.Y.W` e rode `docker compose -f docker-compose.prod.yml up -d`, sem `--build`.
+
+Manutenção mensal: `pnpm audit`, `pnpm outdated`, reconstruir as imagens (`up -d --build`) para receber correções do Node, do Caddy e do Alpine, e conferir se há versão nova do coturn. Guarde uma cópia do `.env` num lugar seguro: é o único estado que não se recria (os certificados ficam no volume `caddy_data` e o Caddy os emite de novo se sumirem).
 
 O Caddy emite e renova o certificado HTTPS sozinho. O coturn roda com `network_mode: host`. O passo a passo da VM (conta na nuvem, domínio, DNS, firewall, validação do TURN, teste entre redes) está no guia de operação, fora do repositório.
 

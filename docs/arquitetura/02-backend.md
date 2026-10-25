@@ -36,6 +36,7 @@ Validadas por zod no start. Todas têm padrão, exceto as marcadas como obrigat�
 | `TURN_CREDENTIAL_TTL_SECONDS` | `43200` | Validade das credenciais TURN (12 h) |
 | `SOCKET_RATE_LIMIT_EVENTS` | `300` | Eventos permitidos por socket na janela |
 | `SOCKET_RATE_LIMIT_WINDOW_MS` | `10000` | Janela do limite acima |
+| `MAX_SOCKETS_PER_IP` | `20` | Sockets simultâneos por endereço do cliente |
 
 ## Modelo de dados (em memória)
 
@@ -88,6 +89,7 @@ Comportamento completo no documento do protocolo (`04-protocolo-sinalizacao.md`)
 - Cada socket guarda `socket.data = { role: 'host' | 'viewer', roomId, viewerId? }` depois de um `join` bem-sucedido. Eventos que exigem papel conferem `socket.data` antes de qualquer coisa.
 - Todo payload passa por `schema.safeParse`. Falhou: nos eventos com `ack`, responde `{ ok: false, error: 'INVALID_PAYLOAD' }`; nos demais, descarta em silêncio e registra em nível `debug` (sem conteúdo do payload).
 - Limite de eventos por socket: contador por janela (`SOCKET_RATE_LIMIT_EVENTS` em `SOCKET_RATE_LIMIT_WINDOW_MS`). Ao estourar, desconecta o socket.
+- Limite de sockets simultâneos por endereço (`MAX_SOCKETS_PER_IP`, `ConnectionLimiter`): o handshake é recusado no `allowRequest` quando o endereço já está no limite, e a vaga é liberada no `handleDisconnect`. O endereço segue a mesma regra do `trust proxy` do Express (`TRUST_PROXY` saltos a partir do fim do `X-Forwarded-For`), então um `X-Forwarded-For` forjado pelo cliente não muda a contagem. O endereço nunca vai para o log.
 - Varredura: `setInterval(SWEEP_INTERVAL_MS)` iniciado em `onModuleInit`, com `unref()`, limpo em `onModuleDestroy`. Para cada sala expirada, emite `room:ended` aos espectadores, desconecta os sockets e apaga a sala.
 - Quando um socket de espectador desconecta, remove o espectador e avisa o anfitrião com `viewer:left`.
 - Quando o socket do anfitrião desconecta, chama `detachHost`, avisa os espectadores com `room:status { live: false }` e deixa a varredura decidir o encerramento depois da tolerância.
