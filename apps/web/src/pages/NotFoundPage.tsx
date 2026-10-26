@@ -1,14 +1,20 @@
 import { Link } from 'react-router';
+import { Icon } from '../components/Icon';
 import { Layout } from '../components/Layout';
+import { StateMessage } from '../components/StateMessage';
 
 export function NotFoundPage() {
   return (
-    <Layout>
-      <h1>Compartilhar tela</h1>
-      <p aria-live="polite">Página não encontrada.</p>
-      <p>
-        <Link to="/">Criar sala</Link>
-      </p>
+    <Layout width="narrow">
+      <h1 className="page-title">Compartilhar tela</h1>
+      <div className="card">
+        <StateMessage icon="alert" message="Página não encontrada.">
+          <Link className="btn btn--primary" to="/">
+            <Icon name="play" />
+            <span>Criar sala</span>
+          </Link>
+        </StateMessage>
+      </div>
     </Layout>
   );
 }

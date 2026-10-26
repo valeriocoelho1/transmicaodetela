@@ -49,6 +49,8 @@ Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a 
 	encode zstd gzip
 
 	header {
+		Strict-Transport-Security "max-age=31536000"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' wss://{$DOMAIN}; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
@@ -65,15 +67,24 @@ Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a 
 
 	handle {
 		root * /srv
+
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+		@unhashed not path /assets/*
+		header @unhashed Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
 }
 ```
 
+`Content-Security-Policy` só permite recursos da própria origem (as fontes embutidas no CSS como `data:` e o WebSocket em `wss://$DOMAIN`), o que limita o estrago de um XSS, que é o único jeito de roubar o `hostToken` do `localStorage`. `Strict-Transport-Security` faz o navegador nunca mais abrir o site por HTTP; não usa `includeSubDomains` porque os outros subdomínios do domínio podem não ter HTTPS. `index.html` vai sem cache e `/assets/*` (nomes com hash) com cache longo, para cada deploy chegar a quem abrir a página.
+
 O Caddy obtém e renova o certificado sozinho, desde que `DOMAIN` aponte para a VM e as portas 80 e 443 estejam abertas. O proxy cuida do upgrade para WebSocket sem configuração extra. Para um teste local, `DOMAIN=localhost` faz o Caddy usar um certificado de uma autoridade interna dele.
 
-## `docker-compose.prod.yml` (esboço)
+## `docker-compose.prod.yml` (esboço original; o arquivo do repositório é a versão atual)
 
 ```yaml
 services:
@@ -165,7 +176,10 @@ volumes:
 Notas:
 
 - É um esboço de referência. Valide a sintaxe com `docker compose -f docker-compose.prod.yml config` e confira os flags do coturn contra a ajuda da imagem (`docker run --rm coturn/coturn --help`). Se algum flag não existir na versão da imagem, ajuste e registre.
-- `--denied-peer-ip` impede que o TURN seja usado para alcançar redes privadas a partir da internet.
+- `--denied-peer-ip` impede que o TURN seja usado para alcançar redes privadas a partir da internet. O arquivo atual também nega as faixas IPv6 equivalentes (`::1`, IPv4 mapeado em IPv6, NAT64, `fc00::/7`, `fe80::/10`): sem isso, `::ffff:10.0.0.1` passaria por fora das faixas IPv4.
+- `--no-tcp-relay`: o WebRTC só precisa de relay UDP; o relay TCP faria do coturn um proxy TCP para qualquer endereço público. (TURN **sobre** TCP na 3478, entre o navegador e o coturn, continua funcionando.)
+- `--max-bps=375000`: no máximo cerca de 3 Mbps por sessão em cada sentido. Cobre o vídeo de 2 Mbps com folga e limita o uso das credenciais TURN (que todo espectador recebe) como relay genérico, e com isso a conta de banda.
+- As imagens `api` e `web` levam a tag `APP_VERSION`, para o rollback não precisar de rebuild.
 - `--external-ip=PUBLICO/PRIVADO` é necessário quando a VM está atrás de NAT de nuvem (caso típico de EC2 e Lightsail).
 - Sem TLS no coturn no MVP: TURN em UDP e TCP na porta 3478. Redes que bloqueiam tudo exceto 443 não são atendidas. TURN sobre TLS fica para depois.
 
@@ -178,6 +192,7 @@ Notas:
 | `PUBLIC_IP` | `IP_PUBLICO_DA_VM` | IP público (Elastic IP, no caso de EC2) |
 | `PRIVATE_IP` | `IP_PRIVADO_DA_VM` | IP privado da interface da VM |
 | `MAX_VIEWERS_PER_ROOM` | `5` | Opcional |
+| `APP_VERSION` | `0.2.0` | Versão publicada (tag sem o `v`); vira a tag das imagens |
 
 ## Portas e firewall
 

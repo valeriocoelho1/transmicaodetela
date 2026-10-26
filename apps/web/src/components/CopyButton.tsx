@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from './Button';
 
 interface CopyButtonProps {
   text: string;
@@ -24,8 +25,12 @@ export function CopyButton({ text, onCopyFailed }: CopyButtonProps) {
   }
 
   return (
-    <button type="button" onClick={() => void copy()}>
+    <Button
+      variant={copied ? 'success' : 'primary'}
+      icon={copied ? 'check' : 'copy'}
+      onClick={() => void copy()}
+    >
       {copied ? 'Link copiado' : 'Copiar link'}
-    </button>
+    </Button>
   );
 }

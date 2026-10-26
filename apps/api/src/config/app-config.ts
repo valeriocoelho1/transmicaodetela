@@ -32,6 +32,7 @@ const envSchema = z
     TURN_CREDENTIAL_TTL_SECONDS: positiveInt(43_200),
     SOCKET_RATE_LIMIT_EVENTS: positiveInt(300),
     SOCKET_RATE_LIMIT_WINDOW_MS: positiveInt(10_000),
+    MAX_SOCKETS_PER_IP: positiveInt(20),
   })
   .superRefine((env, ctx) => {
     if (env.ALLOWED_ORIGINS.length === 0) {
@@ -66,6 +67,7 @@ export interface AppConfig {
   turnCredentialTtlSeconds: number;
   socketRateLimitEvents: number;
   socketRateLimitWindowMs: number;
+  maxSocketsPerIp: number;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
@@ -103,5 +105,6 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     turnCredentialTtlSeconds: e.TURN_CREDENTIAL_TTL_SECONDS,
     socketRateLimitEvents: e.SOCKET_RATE_LIMIT_EVENTS,
     socketRateLimitWindowMs: e.SOCKET_RATE_LIMIT_WINDOW_MS,
+    maxSocketsPerIp: e.MAX_SOCKETS_PER_IP,
   };
 }

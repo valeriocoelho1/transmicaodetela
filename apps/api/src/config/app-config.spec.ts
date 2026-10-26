@@ -20,6 +20,7 @@ describe('loadConfig', () => {
       turnCredentialTtlSeconds: 43_200,
       socketRateLimitEvents: 300,
       socketRateLimitWindowMs: 10_000,
+      maxSocketsPerIp: 20,
     });
   });
 

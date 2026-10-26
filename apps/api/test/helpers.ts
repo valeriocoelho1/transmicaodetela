@@ -40,7 +40,7 @@ export interface TestApp {
   app: NestExpressApplication;
   url: string;
   logger: CapturingLogger;
-  connect(options?: { origin?: string }): Promise<ClientSocket>;
+  connect(options?: { origin?: string; headers?: Record<string, string> }): Promise<ClientSocket>;
   createRoom(): Promise<CreateRoomResponse>;
   close(): Promise<void>;
 }
@@ -67,7 +67,10 @@ export async function startApp(env: Record<string, string> = {}): Promise<TestAp
         transports: ['websocket'],
         forceNew: true,
         reconnection: false,
-        extraHeaders: options.origin ? { origin: options.origin } : undefined,
+        extraHeaders: {
+          ...(options.origin ? { origin: options.origin } : {}),
+          ...options.headers,
+        },
       });
       sockets.push(socket);
       await waitForEvent(socket, 'connect' as EventName);
