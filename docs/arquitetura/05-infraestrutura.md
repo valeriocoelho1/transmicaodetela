@@ -40,7 +40,7 @@ Internet
 | `.env.example` | Variáveis de produção, só com placeholders |
 | `.dockerignore` | `node_modules`, `.git`, `dist`, `.env`, `e2e`, `docs` |
 
-Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a raiz do repositório, porque a API e o front dependem de `packages/shared`. Confirme na prática como o pnpm empacota um pacote do workspace para produção (o comportamento de `pnpm deploy` muda entre majors) e registre a decisão em `docs/PROGRESSO.md`.
+Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a raiz do repositório, porque a API e o front dependem de `packages/shared`. O comportamento de `pnpm deploy` para empacotar um pacote do workspace em produção muda entre majors; confirme na prática antes de assumir.
 
 ## Caddyfile
 
