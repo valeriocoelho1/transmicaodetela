@@ -12,11 +12,10 @@ Site para transmitir a tela do computador por link. Uma pessoa (o **anfitrião**
 2. **Escopo é só o MVP.** A lista "Fora do MVP" abaixo é proibida, mesmo que pareça fácil ou útil. Se achar que algo fora da lista é necessário, pergunte antes.
 3. **Dependências.** Use só as listadas em `docs/stack.md`. Qualquer outra exige justificativa de uma linha e aprovação. Antes de instalar, confirme que o pacote existe (`pnpm view NOME version`). Instale as versões estáveis mais recentes com `pnpm add` e deixe o lockfile fixar. Não digite números de versão de memória.
 4. **Segredos.** Nunca escreva segredo no repositório. `.env` fica no `.gitignore`; `.env.example` tem só placeholders.
-5. **Uma fase por vez**, na ordem de `docs/fases/`. Não adiante trabalho de fases futuras.
-6. **Verifique de verdade.** Ao fim de cada fase, rode as verificações da própria fase e só marque como feito o que você executou e viu passar. Se não conseguiu executar algo (por exemplo, Docker ausente), diga isso claramente. Nunca presuma que funciona.
-7. **Registre.** Atualize `docs/PROGRESSO.md` ao fim de cada fase e faça commits pequenos e coerentes (Conventional Commits, em inglês).
-8. **Decisões.** Se algo não está nos docs e muda comportamento visível ou segurança, pergunte antes. Se é detalhe interno, decida e anote em `docs/PROGRESSO.md`, seção "Decisões".
-9. **Sem enfeite.** Código simples, tipado, sem abstração que o MVP não pede. Sem comentários que repetem o código. Sem arquivos de exemplo ou boilerplate que ninguém usa.
+5. **Verifique de verdade.** Só marque como feito o que você executou e viu passar. Se não conseguiu executar algo (por exemplo, Docker ausente), diga isso claramente. Nunca presuma que funciona.
+6. **Registre.** Faça commits pequenos e coerentes (Conventional Commits, em inglês).
+7. **Decisões.** Se algo muda comportamento visível ou segurança, pergunte antes de implementar.
+8. **Sem enfeite.** Código simples, tipado, sem abstração que o MVP não pede. Sem comentários que repetem o código. Sem arquivos de exemplo ou boilerplate que ninguém usa.
 
 ## Idiomas
 
@@ -47,7 +46,7 @@ apps/web/               React + Vite
 packages/shared/        schemas e tipos compartilhados
 e2e/                    testes Playwright
 deploy/                 Caddyfile
-docs/                   documentação e fases
+docs/                   documentação
 ```
 
 ## Comandos (devem existir no fim da Fase 0)
@@ -80,11 +79,8 @@ Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, medias
 
 ## Definição de pronto do MVP
 
-Duas pessoas em redes diferentes (uma delas no 4G): o anfitrião cria a sala, compartilha a tela, envia o link, e o espectador vê o vídeo em até poucos segundos, em um site com HTTPS. Todas as verificações de `docs/fases/` passam. `docs/PROGRESSO.md` está atualizado.
+Duas pessoas em redes diferentes (uma delas no 4G): o anfitrião cria a sala, compartilha a tela, envia o link, e o espectador vê o vídeo em até poucos segundos, em um site com HTTPS.
 
 ## Onde ler mais
 
-- `docs/PROMPT-MESTRE.md`: visão completa do que construir.
 - `docs/stack.md` e `docs/arquitetura/`: stack e arquitetura em partes.
-- `docs/fases/`: uma fase por arquivo, com tarefas, critérios de aceite e verificação.
-- `docs/PROGRESSO.md`: onde você registra o andamento.
