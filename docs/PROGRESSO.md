@@ -277,6 +277,21 @@ Mudanças: as três barras retas viraram um único `<svg>` (`.direct__links`) co
 
 **Texto novo, para revisão:** "É seguro? — Sim. O vídeo vai criptografado do seu navegador direto para o de quem assiste e não fica gravado em lugar nenhum. O projeto é open source: o código está no GitHub para qualquer pessoa conferir. Quem tiver o link entra na sala, então envie só para quem deve assistir. Como a conexão é direta, vocês podem ver o endereço IP uns dos outros."
 
+### Etapa 12: "Criar sala" falhando com ECONNREFUSED no `pnpm dev` (2026-10-26)
+
+Sintoma: `[vite] http proxy error: /api/rooms ... ECONNREFUSED` ao criar sala logo depois de rodar `pnpm dev`.
+
+Causa: o Vite fica pronto em segundos, mas a API (`nest start --watch`) ainda não está ouvindo na porta 3000. Medido nesta máquina: `node dist/main.js` sobe em 0,5–0,8 s, mas a partida pelo watch variou de 2 s a 60 s, e no `pnpm dev` do usuário passou de 7 minutos. O motivo é a memória: Mac de 8 GB com 6,9 GB de swap em uso (app do Claude, VS Code, Cursor, Spotify, VM do Docker Desktop). Carregar a API significa ler páginas de volta do disco. A carga de cada dependência (Nest, socket.io, zod) leva menos de 0,35 s; `--enable-source-maps` não pesa.
+
+Correção (só no servidor de desenvolvimento): plugin `wait-for-api` no `vite.config.ts`. Antes de repassar `/api/*` e `/socket.io/*`, ele consulta `/api/health` e, se a API não responde, segura o pedido por até 60 s, conferindo a cada 0,5 s. O console do Vite mostra "Waiting for the API at …" uma vez. Também cobre a reinicialização da API ao salvar um arquivo. Não muda nada em produção (`apply: 'serve'`).
+
+| Verificação | Resultado |
+| --- | --- |
+| Vite na 5399 apontando para a 3399 sem API; `GET /api/health` pelo Vite; API ligada 6 s depois | 200 `{"status":"ok"}` em 7,1 s, em vez de `ECONNREFUSED`; uma linha "Waiting for the API" no log do Vite |
+| `POST /api/rooms` pelo Vite com a API no ar | 201 três vezes, 3–28 ms |
+| `typecheck` do web, `eslint`, `prettier --check` | ok |
+| `pnpm test:e2e` | 11/11 |
+
 ## Decisões
 
 Registre aqui decisões tomadas que não estavam nos documentos (data, decisão, motivo em uma linha).
