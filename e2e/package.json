@@ -2,6 +2,7 @@
   "name": "@app/e2e",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test:e2e": "playwright test",
