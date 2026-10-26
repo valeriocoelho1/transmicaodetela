@@ -155,9 +155,9 @@ apps/web/          site React + Vite (@app/web)
 packages/shared/   schemas e tipos compartilhados (@app/shared)
 e2e/               testes Playwright (@app/e2e)
 deploy/            Caddyfile
-docs/              especificação, arquitetura, fases e progresso
+docs/              stack e arquitetura
 ```
 
 ## Documentação
 
-Veja [`docs/`](docs/): [`PROMPT-MESTRE.md`](docs/PROMPT-MESTRE.md), [`stack.md`](docs/stack.md), [`arquitetura/`](docs/arquitetura/), [`fases/`](docs/fases/) e [`PROGRESSO.md`](docs/PROGRESSO.md).
+Veja [`docs/`](docs/): [`stack.md`](docs/stack.md) e [`arquitetura/`](docs/arquitetura/).
