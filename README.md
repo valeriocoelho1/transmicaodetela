@@ -161,3 +161,7 @@ docs/              stack e arquitetura
 ## Documentação
 
 Veja [`docs/`](docs/): [`stack.md`](docs/stack.md) e [`arquitetura/`](docs/arquitetura/).
+
+## Licença
+
+[MIT](LICENSE).
