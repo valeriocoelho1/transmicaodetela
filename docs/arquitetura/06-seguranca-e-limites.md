@@ -18,8 +18,9 @@ O MVP não tem contas nem senha de sala: **quem tem o link, entra**. A seguranç
 | XSS | React escapa texto. Não usar `dangerouslySetInnerHTML`. A interface não renderiza texto vindo de outros usuários. `Content-Security-Policy` no Caddy só aceita script, estilo e conexões da própria origem |
 | Rebaixamento para HTTP | `Strict-Transport-Security` no Caddy, além do redirecionamento para HTTPS |
 | Clickjacking | `X-Frame-Options: DENY` no Caddy |
+| Acesso indevido a recursos do navegador | `Permissions-Policy` libera só a captura de tela; câmera, microfone e localização ficam negados. `Cross-Origin-Opener-Policy: same-origin` isola a janela de páginas de outras origens |
 | Vazamento de dados em log | Proibido logar SDP, candidatos ICE, `hostToken` e `TURN_SECRET` |
-| Contêiner com privilégio demais | API roda com usuário não root |
+| Contêiner com privilégio demais | API roda com usuário não root e sistema de arquivos somente leitura. Todos os serviços com `no-new-privileges`, `cap_drop: ALL` (o Caddy só com `NET_BIND_SERVICE`) e limites de memória e processos |
 
 ## O que o P2P expõe (aviso ao usuário)
 

@@ -34,7 +34,7 @@ Internet
 | Arquivo | Conteúdo |
 | --- | --- |
 | `apps/api/Dockerfile` | Build em múltiplos estágios, imagem final só com dependências de produção e `dist`, usuário não root, `HEALTHCHECK` em `/api/health` |
-| `apps/web/Dockerfile` | Estágio 1: build do `@app/web`. Estágio 2: `caddy:2-alpine` com os arquivos em `/srv` e o `Caddyfile` |
+| `apps/web/Dockerfile` | Estágio 1: build do `@app/web`. Estágio 2: `caddy` (versão exata fixada no Dockerfile) com os arquivos em `/srv` e o `Caddyfile` |
 | `deploy/Caddyfile` | Configuração do Caddy (abaixo) |
 | `docker-compose.prod.yml` | Os três serviços (esboço abaixo) |
 | `.env.example` | Variáveis de produção, só com placeholders |
@@ -54,7 +54,9 @@ Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a 
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
-		Permissions-Policy "display-capture=(self)"
+		Permissions-Policy "display-capture=(self), camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy same-origin
+		-Server
 	}
 
 	handle /api/* {
@@ -180,6 +182,9 @@ Notas:
 - `--no-tcp-relay`: o WebRTC só precisa de relay UDP; o relay TCP faria do coturn um proxy TCP para qualquer endereço público. (TURN **sobre** TCP na 3478, entre o navegador e o coturn, continua funcionando.)
 - `--max-bps=375000`: no máximo cerca de 3 Mbps por sessão em cada sentido. Cobre o vídeo de 2 Mbps com folga e limita o uso das credenciais TURN (que todo espectador recebe) como relay genérico, e com isso a conta de banda.
 - As imagens `api` e `web` levam a tag `APP_VERSION`, para o rollback não precisar de rebuild.
+- Os três serviços rodam com `no-new-privileges` e `cap_drop: ALL`. O `web` recebe só `NET_BIND_SERVICE` para ouvir nas portas 80 e 443. A API roda com sistema de arquivos somente leitura (`read_only`, com `/tmp` em memória).
+- Limites de memória (`api` 256 MB, `web` 128 MB, `coturn` 128 MB) e de processos protegem uma VM de 1 GB: um serviço descontrolado é reiniciado em vez de derrubar a máquina.
+- O coturn 4.18 já esconde a versão do software por padrão (`--no-software-attribute` está deprecado).
 - `--external-ip=PUBLICO/PRIVADO` é necessário quando a VM está atrás de NAT de nuvem (caso típico de EC2 e Lightsail).
 - Sem TLS no coturn no MVP: TURN em UDP e TCP na porta 3478. Redes que bloqueiam tudo exceto 443 não são atendidas. TURN sobre TLS fica para depois.
 
