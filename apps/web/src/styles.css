@@ -245,11 +245,6 @@ input {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: var(--space-3);
-  color: var(--fg);
-  font-family: var(--font-pixel);
-  font-size: 1.125rem;
-  text-decoration: none;
 }
 
 .avatar {
@@ -1637,12 +1632,6 @@ button.profile .icon {
     flex-basis: 100%;
     order: 3;
     justify-content: space-between;
-  }
-}
-
-@media (max-width: 520px) {
-  .room-bar__brand span {
-    display: none;
   }
 }
 

@@ -12,9 +12,13 @@ interface RoomBarProps {
 export function RoomBar({ name, onRename, children }: RoomBarProps) {
   return (
     <header className="room-bar">
-      <Link to="/" className="room-bar__brand">
-        <PixelSprite name="tv" size={26} />
-        <span>Transmitir tela</span>
+      <Link
+        to="/"
+        className="room-bar__brand"
+        aria-label="Transmitir tela, página inicial"
+        title="Transmitir tela"
+      >
+        <PixelSprite name="tv" size={48} />
       </Link>
       <div className="room-bar__meta" aria-live="polite">
         {children}
