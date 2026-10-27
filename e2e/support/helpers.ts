@@ -19,9 +19,13 @@ export function url(path: string): string {
   return `${BASE_URL}${path}`;
 }
 
-export async function openHostRoom(browser: Browser): Promise<{ host: Page; link: string }> {
+export async function openHostRoom(
+  browser: Browser,
+  prepare?: (context: BrowserContext) => Promise<void>,
+): Promise<{ host: Page; link: string }> {
   const context = await newContext(browser);
   await installFakeDisplayMedia(context);
+  await prepare?.(context);
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
     origin: new URL(BASE_URL).origin,
   });

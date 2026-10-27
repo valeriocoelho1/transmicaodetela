@@ -46,8 +46,10 @@ apps/web/src/
 | `CAPTURE_MAX_WIDTH` / `CAPTURE_MAX_HEIGHT` | `1920` / `1080` | Limite (`max`) da resolução de captura. Telas maiores (Retina, 4K) são reduzidas pelo navegador, o que mantém o FPS dentro dos 2 Mbps e poupa CPU, já que o anfitrião codifica uma vez por espectador |
 | `VIDEO_MAX_BITRATE_BPS` | `2_000_000` | `maxBitrate` no `RTCRtpSender` |
 | `VIDEO_MAX_FRAMERATE` | `30` | `maxFramerate` no `RTCRtpSender` |
-| `HOST_PEER_RECOVERY_DELAY_MS` | `4_000` | Quanto tempo um peer pode ficar `disconnected` antes de o anfitrião recriá-lo |
+| `HOST_PEER_RECOVERY_DELAY_MS` | `3_000` | Quanto tempo um peer pode ficar `disconnected` antes de o anfitrião tentar um ICE restart |
+| `HOST_ICE_RESTART_TIMEOUT_MS` | `8_000` | Prazo para o ICE restart chegar a `connected` antes de o peer ser recriado |
 | `HOST_PEER_MAX_RECOVERIES` | `3` | Recriações seguidas sem chegar a `connected` antes de desistir do peer |
+| `VIEWER_FAILURE_TIMEOUT_MS` | `15_000` | Quanto tempo o espectador espera o vídeo voltar antes de mostrar "falhou" |
 
 ## Captura de tela (`lib/capture.ts`)
 
@@ -90,7 +92,8 @@ Mantém `Map<viewerId, { pc, queue }>` e o conjunto `knownViewers`. Interface:
 | `removeViewer(viewerId)` | Fecha o peer e remove |
 | `start(stream)` | Guarda a stream e cria um peer para cada espectador conhecido |
 | `stop()` | Fecha todos os peers e esquece a stream. Mantém `knownViewers` |
-| `rebuildAll()` | Fecha todos os peers e recria (usado depois de reconexão do socket) |
+| `rebuildAll()` | Fecha todos os peers e recria (usado ao começar a transmitir) |
+| `resume()` | Depois de reconectar o socket: recria só os peers que não estão `connected` |
 | `handleAnswer(viewerId, sdp)` | `setRemoteDescription`, depois esvazia a fila de candidatos |
 | `handleIce(viewerId, candidate)` | Se já há `remoteDescription`, `addIceCandidate`; senão, enfileira |
 | `dispose()` | `stop()` e remove ouvintes |
@@ -102,7 +105,7 @@ Criação de um peer, nesta ordem (validada em protótipo):
 3. Preferência de codec: se o navegador consegue enviar VP9, `setCodecPreferences` no transceiver de vídeo com a lista de `RTCRtpReceiver.getCapabilities('video')` reordenada com VP9 primeiro (os outros codecs ficam, na ordem original, como reserva para quem não decodifica VP9). VP9 comprime texto e telas melhor que o VP8 padrão.
 4. No sender de vídeo: `getParameters()`, garantir `encodings[0]`, definir `maxBitrate` e `maxFramerate`, `setParameters()`.
 5. `pc.onicecandidate`: se `e.candidate`, emitir `signal:ice { viewerId, candidate: e.candidate.toJSON() }`.
-6. `pc.onconnectionstatechange`: em `failed`, recriar o peer na hora (nova oferta); em `disconnected`, recriar se não voltar a `connected` em `HOST_PEER_RECOVERY_DELAY_MS`. Depois de `HOST_PEER_MAX_RECOVERIES` recriações seguidas sem conexão, fechar o peer e avisar a UI (`peerFailed`); o espectador cai no estado "falhou" e pode tentar de novo. Chegar a `connected` zera a contagem. Como o espectador sempre troca o peer ao receber oferta, a recuperação mantém o anfitrião como único ofertante.
+6. `pc.onconnectionstatechange`: em `failed`, ou em `disconnected` que não volta a `connected` em `HOST_PEER_RECOVERY_DELAY_MS`, tentar primeiro um ICE restart no mesmo peer (`createOffer({ iceRestart: true })`), que resolve troca de rede (Wi-Fi para 4G) sem refazer a conexão. Se falhar de novo ou não conectar em `HOST_ICE_RESTART_TIMEOUT_MS`, recriar o peer (nova oferta). Depois de `HOST_PEER_MAX_RECOVERIES` recriações seguidas sem conexão, fechar o peer e avisar a UI (`peerFailed`); o espectador cai no estado "falhou" e pode tentar de novo. Chegar a `connected` zera a contagem. Como o espectador sempre troca o peer ao receber oferta, a recuperação mantém o anfitrião como único ofertante.
 7. `createOffer()`, `setLocalDescription(offer)`, emitir `signal:offer { viewerId, sdp: pc.localDescription.toJSON() }`.
 
 O anfitrião é sempre o ofertante. Nunca crie oferta no espectador.
@@ -111,17 +114,17 @@ O anfitrião é sempre o ofertante. Nunca crie oferta no espectador.
 
 | Método | O que faz |
 | --- | --- |
-| `handleOffer(sdp)` | Fecha o peer anterior (se houver) e cria um novo. `pc.ontrack` entrega `e.streams[0]`. `setRemoteDescription(offer)`, esvazia a fila, `createAnswer()`, `setLocalDescription`, emite `signal:answer` |
+| `handleOffer(sdp)` | Se a oferta tem o mesmo id de sessão (`o=`) do peer atual, é um ICE restart: responde no mesmo peer. Senão, fecha o peer anterior (se houver) e cria um novo. `pc.ontrack` entrega `e.streams[0]`. `setRemoteDescription(offer)`, esvazia a fila, `createAnswer()`, `setLocalDescription`, emite `signal:answer` |
 | `handleIce(candidate)` | Mesma regra de fila do anfitrião |
 | `close()` | Fecha o peer e entrega `null` ao `onStream` |
 
-`pc.onconnectionstatechange`: `connected` leva a UI para "assistindo"; `failed` leva para "falhou" depois de 10 segundos sem recuperação; `disconnected` é tolerado por alguns segundos.
+`pc.onconnectionstatechange`: `connected` leva a UI para "assistindo"; `failed` leva para "falhou" depois de `VIEWER_FAILURE_TIMEOUT_MS` sem recuperação (ou para "aguardando", se o anfitrião está fora); `disconnected` é tolerado nesse meio-tempo.
 
 ## Hooks de sessão
 
 Ambos recebem o `roomId`, criam o socket via `lib/signaling.ts` e expõem estado pronto para a UI.
 
-**Regra de reconexão (vale para os dois):** registre `socket.on('connect', join)`. O Socket.IO reconecta sozinho; a cada `connect` (inclusive o primeiro) o hook refaz o `join`. No anfitrião, depois de um novo `join` bem-sucedido, chame `broadcaster.rebuildAll()` se havia stream ativa e reemita `host:live { live: true }`.
+**Regra de reconexão (vale para os dois):** registre `socket.on('connect', join)`. O Socket.IO reconecta sozinho; a cada `connect` (inclusive o primeiro) o hook refaz o `join`. A queda do socket não fecha peers nem para o vídeo. No anfitrião, depois de um novo `join` bem-sucedido, chame `broadcaster.resume()` se havia stream ativa e reemita `host:live { live: true }`; sem stream, reemita `host:live { live: false }`. O espectador guarda em memória o `viewerId` e o `resumeToken` do último `ack` e manda `resume` no `join` seguinte, com `needsOffer` quando o peer dele não está `connected`. Enquanto o socket está fora, o espectador que assiste mostra "Reconectando…" na barra; se o anfitrião está fora, "Anfitrião reconectando…". Depois de uma desconexão do servidor sem `room:ended` (limite atingido), os dois reconectam sozinhos em 2 segundos. No `pagehide`, os dois fecham o socket de propósito.
 
 ### `useHostSession(roomId)`
 

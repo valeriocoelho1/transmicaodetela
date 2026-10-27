@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
-import { HOST_PEER_MAX_RECOVERIES, HOST_PEER_RECOVERY_DELAY_MS } from '../../config';
+import {
+  HOST_ICE_RESTART_TIMEOUT_MS,
+  HOST_PEER_MAX_RECOVERIES,
+  HOST_PEER_RECOVERY_DELAY_MS,
+} from '../../config';
 import { HostBroadcaster, type HostBroadcasterCallbacks } from './host-broadcaster';
 
 const videoCodecs = [
@@ -17,6 +21,7 @@ class FakePeerConnection {
   onicecandidate: ((event: { candidate: null }) => void) | null = null;
   onconnectionstatechange: (() => void) | null = null;
   closed = false;
+  offerOptions: (RTCOfferOptions | undefined)[] = [];
   codecPreferences: { mimeType: string }[] | null = null;
   private readonly track = { kind: 'video' };
   private readonly sender = {
@@ -45,7 +50,8 @@ class FakePeerConnection {
       },
     ];
   }
-  createOffer() {
+  createOffer(options?: RTCOfferOptions) {
+    this.offerOptions.push(options);
     return Promise.resolve({ type: 'offer', sdp: 'v=0' });
   }
   setLocalDescription(description: { sdp: string }) {
@@ -113,54 +119,103 @@ describe('HostBroadcaster', () => {
     expect(pc.codecPreferences).toBeNull();
   });
 
-  it('sends a fresh offer right away when a peer fails', async () => {
+  // A failed peer first gets an ICE restart; a second failure replaces it.
+  async function failTwice(pc: FakePeerConnection) {
+    pc.changeState('failed');
+    await flush();
+    pc.changeState('failed');
+    await flush();
+  }
+
+  it('tries an ICE restart on the same peer when it fails', async () => {
     const pc = await addViewer();
     expect(offer).toHaveBeenCalledTimes(1);
     pc.changeState('failed');
     await flush();
+    expect(pc.closed).toBe(false);
+    expect(FakePeerConnection.created).toHaveLength(1);
+    expect(pc.offerOptions.at(-1)).toEqual({ iceRestart: true });
+    expect(offer).toHaveBeenCalledTimes(2);
+  });
+
+  it('replaces the peer when it fails again after the ICE restart', async () => {
+    const pc = await addViewer();
+    await failTwice(pc);
     expect(pc.closed).toBe(true);
     expect(FakePeerConnection.created).toHaveLength(2);
-    expect(offer).toHaveBeenCalledTimes(2);
+    expect(offer).toHaveBeenCalledTimes(3);
     expect(peerFailed).not.toHaveBeenCalled();
   });
 
-  it('waits before replacing a disconnected peer and does nothing if it comes back', async () => {
+  it('replaces the peer when the ICE restart does not connect in time', async () => {
+    const pc = await addViewer();
+    pc.changeState('failed');
+    await vi.advanceTimersByTimeAsync(HOST_ICE_RESTART_TIMEOUT_MS);
+    expect(pc.closed).toBe(true);
+    expect(FakePeerConnection.created).toHaveLength(2);
+  });
+
+  it('keeps the peer when the ICE restart works', async () => {
+    const pc = await addViewer();
+    pc.changeState('failed');
+    await flush();
+    pc.changeState('connected');
+    await vi.advanceTimersByTimeAsync(HOST_ICE_RESTART_TIMEOUT_MS);
+    expect(FakePeerConnection.created).toHaveLength(1);
+    pc.changeState('failed');
+    await flush();
+    expect(pc.offerOptions.at(-1)).toEqual({ iceRestart: true });
+    expect(pc.closed).toBe(false);
+  });
+
+  it('waits before restarting a disconnected peer and does nothing if it comes back', async () => {
     const pc = await addViewer();
     pc.changeState('disconnected');
     await vi.advanceTimersByTimeAsync(HOST_PEER_RECOVERY_DELAY_MS - 1);
     pc.changeState('connected');
     await vi.advanceTimersByTimeAsync(HOST_PEER_RECOVERY_DELAY_MS);
+    expect(offer).toHaveBeenCalledTimes(1);
     expect(FakePeerConnection.created).toHaveLength(1);
   });
 
-  it('replaces a peer that stays disconnected', async () => {
+  it('restarts ICE on a peer that stays disconnected', async () => {
     const pc = await addViewer();
     pc.changeState('disconnected');
     await vi.advanceTimersByTimeAsync(HOST_PEER_RECOVERY_DELAY_MS);
-    expect(pc.closed).toBe(true);
-    expect(FakePeerConnection.created).toHaveLength(2);
+    expect(pc.closed).toBe(false);
+    expect(pc.offerOptions.at(-1)).toEqual({ iceRestart: true });
   });
 
-  it('gives up after the maximum number of recoveries in a row', async () => {
+  it('gives up after the maximum number of replacements in a row', async () => {
     await addViewer();
     for (let i = 0; i <= HOST_PEER_MAX_RECOVERIES; i++) {
-      FakePeerConnection.created.at(-1)?.changeState('failed');
-      await flush();
+      await failTwice(FakePeerConnection.created.at(-1)!);
     }
     expect(FakePeerConnection.created).toHaveLength(HOST_PEER_MAX_RECOVERIES + 1);
     expect(peerFailed).toHaveBeenCalledWith('viewer-1');
   });
 
-  it('resets the recovery count once the peer connects', async () => {
+  it('resets the replacement count once the peer connects', async () => {
     await addViewer();
     for (let i = 0; i < HOST_PEER_MAX_RECOVERIES; i++) {
-      FakePeerConnection.created.at(-1)?.changeState('failed');
-      await flush();
+      await failTwice(FakePeerConnection.created.at(-1)!);
     }
     FakePeerConnection.created.at(-1)?.changeState('connected');
-    FakePeerConnection.created.at(-1)?.changeState('failed');
-    await flush();
+    await failTwice(FakePeerConnection.created.at(-1)!);
     expect(peerFailed).not.toHaveBeenCalled();
+  });
+
+  it('resume keeps connected peers and offers again to the others', async () => {
+    broadcaster.addViewer('viewer-1');
+    broadcaster.addViewer('viewer-2');
+    await flush();
+    const [first, second] = FakePeerConnection.created;
+    first?.changeState('connected');
+    broadcaster.resume();
+    await flush();
+    expect(first?.closed).toBe(false);
+    expect(second?.closed).toBe(true);
+    expect(FakePeerConnection.created).toHaveLength(3);
   });
 
   it('does not recover a viewer that already left', async () => {

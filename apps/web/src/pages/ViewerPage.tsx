@@ -12,8 +12,11 @@ import { useViewerSession, type ViewerState } from '../hooks/useViewerSession';
 import {
   CONNECTING_MESSAGE,
   END_REASON_MESSAGES,
+  HOST_AWAY_MESSAGE,
+  HOST_RECONNECTING_LABEL,
   RECONNECTING_MESSAGE,
   ROOM_NOT_FOUND_MESSAGE,
+  SIGNALING_LOST_LABEL,
 } from '../lib/end-reason';
 
 const stateIcons: Record<Exclude<ViewerState, 'watching'>, IconName> = {
@@ -30,15 +33,16 @@ export function ViewerPage() {
   const { roomId = '' } = useParams();
   const [name, rename] = useDisplayName();
   const session = useViewerSession(roomId, name);
-  const { state, stream, endedReason, hostName } = session;
+  const { state, stream, endedReason, host } = session;
   const watching = state === 'watching' && stream !== null;
+  const hostAway = host !== null && !host.online;
 
   const current = state === 'watching' ? 'waiting' : state;
   const message = {
     connecting: CONNECTING_MESSAGE,
     not_found: ROOM_NOT_FOUND_MESSAGE,
     full: 'A sala está cheia. Tente novamente mais tarde.',
-    waiting: 'Aguardando o anfitrião iniciar a transmissão.',
+    waiting: hostAway ? HOST_AWAY_MESSAGE : 'Aguardando o anfitrião iniciar a transmissão.',
     reconnecting: RECONNECTING_MESSAGE,
     failed: 'Não foi possível receber o vídeo. Verifique sua rede e tente novamente.',
     ended: endedReason ? END_REASON_MESSAGES[endedReason] : ROOM_NOT_FOUND_MESSAGE,
@@ -53,9 +57,16 @@ export function ViewerPage() {
       <RoomBar name={name} onRename={rename}>
         <h1 className="room-bar__title">
           Transmissão
-          {hostName && <span className="room-bar__host"> de {hostName}</span>}
+          {host?.name && <span className="room-bar__host"> de {host.name}</span>}
         </h1>
-        {watching && <StatusPill tone="live" label="Ao vivo" />}
+        {watching &&
+          (session.signalingLost ? (
+            <StatusPill tone="warning" label={SIGNALING_LOST_LABEL} />
+          ) : hostAway ? (
+            <StatusPill tone="warning" label={HOST_RECONNECTING_LABEL} />
+          ) : (
+            <StatusPill tone="live" label="Ao vivo" />
+          ))}
       </RoomBar>
       <div className={showList ? 'room-grid' : 'room-grid room-grid--single'}>
         {watching ? (

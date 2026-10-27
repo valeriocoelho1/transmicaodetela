@@ -107,7 +107,7 @@ export function HostPage() {
             </div>
           </div>
           <div className="stage__bar">
-            {state === 'live' ? (
+            {session.previewStream ? (
               <Button variant="secondary" icon="stop" onClick={session.stopSharing}>
                 Parar transmissão
               </Button>
@@ -156,9 +156,7 @@ export function HostPage() {
             <LinkField link={link} />
           </Card>
           <ViewerList
-            viewers={
-              inRoom ? session.viewers.map(({ viewerId, name }) => ({ id: viewerId, name })) : []
-            }
+            viewers={session.viewers.map(({ viewerId, name }) => ({ id: viewerId, name }))}
             maxViewers={session.maxViewers}
             emptyText="Ninguém assistindo ainda. Envie o link da sala."
             hint={

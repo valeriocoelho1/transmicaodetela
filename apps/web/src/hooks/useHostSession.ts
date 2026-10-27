@@ -134,17 +134,25 @@ export function useHostSession(roomId: string, name: string) {
       setViewers(ack.viewers);
       setMaxViewers(ack.maxViewers);
       if (streamRef.current) {
-        broadcaster.rebuildAll();
+        // Viewers kept watching while the server was away; only broken peers get a new offer.
+        broadcaster.resume();
         socket.emit('host:live', { live: true });
         setState('live');
-      } else if (stateRef.current !== 'starting') {
-        setState('ready');
+      } else {
+        // After a reload nothing is being shared, so viewers should stop waiting for video.
+        socket.emit('host:live', { live: false });
+        if (stateRef.current !== 'starting') setState('ready');
       }
     });
     socket.connect();
 
+    // Closing or reloading the page tells viewers right away that the broadcast stopped.
+    const leave = () => socket.disconnect();
+    window.addEventListener('pagehide', leave);
+
     return () => {
       cancelled = true;
+      window.removeEventListener('pagehide', leave);
       socket.removeAllListeners();
       socket.disconnect();
       broadcaster.dispose();

@@ -1,5 +1,6 @@
 import type { AnswerSdp, IceCandidate, IceServer, OfferSdp } from '@app/shared';
 import {
+  HOST_ICE_RESTART_TIMEOUT_MS,
   HOST_PEER_MAX_RECOVERIES,
   HOST_PEER_RECOVERY_DELAY_MS,
   VIDEO_MAX_BITRATE_BPS,
@@ -17,6 +18,8 @@ interface Peer {
   pc: RTCPeerConnection;
   queue: IceCandidateQueue;
   recoveryTimer?: ReturnType<typeof setTimeout>;
+  // Set once an ICE restart was tried for the current drop; cleared when the peer connects.
+  iceRestarted?: boolean;
 }
 
 // VP9 compresses text and flat screen content better than the VP8 default. Receivers that
@@ -93,6 +96,18 @@ export class HostBroadcaster {
     for (const viewerId of this.knownViewers) void this.createPeer(viewerId, stream);
   }
 
+  // After the signaling connection comes back: video connections run between the browsers and
+  // may have survived, so only the ones that are not connected get a new offer.
+  resume(): void {
+    const stream = this.stream;
+    if (!stream) return;
+    for (const viewerId of this.knownViewers) {
+      if (this.peers.get(viewerId)?.pc.connectionState !== 'connected') {
+        void this.createPeer(viewerId, stream);
+      }
+    }
+  }
+
   async handleAnswer(viewerId: string, sdp: AnswerSdp): Promise<void> {
     const peer = this.peers.get(viewerId);
     if (!peer || peer.pc.signalingState !== 'have-local-offer') return;
@@ -125,6 +140,23 @@ export class HostBroadcaster {
 
   private isCurrent(viewerId: string, pc: RTCPeerConnection): boolean {
     return this.peers.get(viewerId)?.pc === pc;
+  }
+
+  // A network change (Wi-Fi to 4G, for example) usually only needs new ICE candidates on the same
+  // connection, which is much faster than a new one. Rebuild only if the restart does not help.
+  private repair(viewerId: string, peer: Peer): void {
+    const { pc } = peer;
+    if (!this.isCurrent(viewerId, pc)) return;
+    if (peer.iceRestarted) {
+      this.recover(viewerId, pc);
+      return;
+    }
+    peer.iceRestarted = true;
+    peer.recoveryTimer = setTimeout(() => {
+      peer.recoveryTimer = undefined;
+      if (pc.connectionState !== 'connected') this.recover(viewerId, pc);
+    }, HOST_ICE_RESTART_TIMEOUT_MS);
+    void this.sendOffer(viewerId, pc, { iceRestart: true });
   }
 
   private recover(viewerId: string, pc: RTCPeerConnection): void {
@@ -175,23 +207,37 @@ export class HostBroadcaster {
       if (state === 'connected') {
         clearTimeout(peer.recoveryTimer);
         peer.recoveryTimer = undefined;
+        peer.iceRestarted = false;
         this.recoveries.delete(viewerId);
       } else if (state === 'failed') {
-        this.recover(viewerId, pc);
+        clearTimeout(peer.recoveryTimer);
+        peer.recoveryTimer = undefined;
+        this.repair(viewerId, peer);
       } else if (state === 'disconnected' && !peer.recoveryTimer) {
         peer.recoveryTimer = setTimeout(() => {
           peer.recoveryTimer = undefined;
-          if (pc.connectionState !== 'connected') this.recover(viewerId, pc);
+          if (pc.connectionState !== 'connected') this.repair(viewerId, peer);
         }, HOST_PEER_RECOVERY_DELAY_MS);
       }
     };
 
+    await this.sendOffer(viewerId, pc);
+  }
+
+  private async sendOffer(
+    viewerId: string,
+    pc: RTCPeerConnection,
+    options?: RTCOfferOptions,
+  ): Promise<void> {
     if (!this.isCurrent(viewerId, pc)) return;
     try {
-      const offer = await pc.createOffer();
+      const offer = await pc.createOffer(options);
+      if (!this.isCurrent(viewerId, pc)) return;
       await pc.setLocalDescription(offer);
     } catch {
-      if (this.isCurrent(viewerId, pc)) this.closePeer(viewerId);
+      if (!this.isCurrent(viewerId, pc)) return;
+      if (options?.iceRestart) this.recover(viewerId, pc);
+      else this.closePeer(viewerId);
       return;
     }
     const sdp = pc.localDescription?.sdp;
