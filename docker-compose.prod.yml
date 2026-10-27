@@ -13,7 +13,7 @@ services:
       STUN_URLS: stun:${DOMAIN}:3478
       TURN_URLS: turn:${DOMAIN}:3478?transport=udp,turn:${DOMAIN}:3478?transport=tcp
       TURN_SECRET: ${TURN_SECRET}
-      MAX_VIEWERS_PER_ROOM: ${MAX_VIEWERS_PER_ROOM:-5}
+      MAX_VIEWERS_PER_ROOM: ${MAX_VIEWERS_PER_ROOM:-10}
     expose:
       - '3000'
     healthcheck:

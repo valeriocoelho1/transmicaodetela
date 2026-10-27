@@ -22,7 +22,7 @@ Tudo em TypeScript. Um único repositório (monorepo pnpm). Esta é a lista fech
 
 ## Por que cada escolha
 
-- **P2P agora, SFU depois.** O MVP usa uma conexão WebRTC por espectador, partindo do anfitrião. É a forma mais simples de entender e de colocar no ar. O custo é o upload do anfitrião, que cresce com cada espectador. Por isso o MVP limita a sala (padrão 5 espectadores).
+- **P2P agora, SFU depois.** O MVP usa uma conexão WebRTC por espectador, partindo do anfitrião. É a forma mais simples de entender e de colocar no ar. O custo é o upload do anfitrião, que cresce com cada espectador. Por isso o MVP limita a sala (padrão 10 espectadores).
 - **Socket.IO** dá reconexão automática, confirmações (`ack`) e tipos de eventos prontos. Evita escrever um protocolo sobre WebSocket puro.
 - **NestJS** organiza REST e gateway no mesmo processo, com injeção de dependência e testes de integração fáceis.
 - **zod em `@app/shared`** é a única fonte de verdade dos payloads. API e front validam e tipam pelo mesmo schema.

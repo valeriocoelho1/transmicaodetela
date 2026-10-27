@@ -55,7 +55,7 @@ describe('SignalingGateway', () => {
       ok: true,
       iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
       viewers: [],
-      maxViewers: 5,
+      maxViewers: 10,
     });
   });
 
@@ -97,7 +97,7 @@ describe('SignalingGateway', () => {
       host: { name: 'Anfitrião', online: true },
       selfId: expect.any(String),
       viewers: [{ id: expect.any(String), name: 'Espectador' }],
-      maxViewers: 5,
+      maxViewers: 10,
     });
     expect(await joined).toEqual({ viewerId, name: 'Espectador' });
     expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);

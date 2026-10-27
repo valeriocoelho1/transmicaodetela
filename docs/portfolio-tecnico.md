@@ -26,7 +26,7 @@ Isso é a frase que resume o produto. Em entrevista, é o "elevator pitch"; o re
 
 Pontos que dão bom assunto de entrevista:
 
-- **Por que P2P e não SFU (LiveKit/mediasoup):** decisão consciente de escopo — P2P é mais simples de implementar e operar (sem servidor de mídia), ao custo de o upload do anfitrião crescer linearmente com o número de espectadores. Mitigado com um limite de sala (5 espectadores por padrão). Saber articular esse trade-off (simplicidade operacional vs. escalabilidade) é um ótimo tópico de "arquitetura" em entrevista.
+- **Por que P2P e não SFU (LiveKit/mediasoup):** decisão consciente de escopo — P2P é mais simples de implementar e operar (sem servidor de mídia), ao custo de o upload do anfitrião crescer linearmente com o número de espectadores. Mitigado com um limite de sala (10 espectadores por padrão). Saber articular esse trade-off (simplicidade operacional vs. escalabilidade) é um ótimo tópico de "arquitetura" em entrevista.
 - **Monorepo com pacote compartilhado de contrato (`@app/shared`):** os mesmos schemas zod validam e tipam o payload tanto no NestJS (CJS) quanto no React (ESM). Single source of truth entre backend e frontend, com build dual (ESM/CJS) via `tsup` para servir os dois consumidores a partir do mesmo código-fonte.
 - **NestJS escrito à mão, sem scaffold do CLI:** módulo, controller e `configure-app.ts` (prefixo `/api`) foram escritos manualmente e compartilhados entre `main.ts` e os testes de integração — mostra entendimento da estrutura do framework além do "gerador de código".
 

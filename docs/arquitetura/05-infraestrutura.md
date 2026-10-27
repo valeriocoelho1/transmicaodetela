@@ -103,7 +103,7 @@ services:
       STUN_URLS: stun:${DOMAIN}:3478
       TURN_URLS: turn:${DOMAIN}:3478?transport=udp,turn:${DOMAIN}:3478?transport=tcp
       TURN_SECRET: ${TURN_SECRET}
-      MAX_VIEWERS_PER_ROOM: ${MAX_VIEWERS_PER_ROOM:-5}
+      MAX_VIEWERS_PER_ROOM: ${MAX_VIEWERS_PER_ROOM:-10}
     expose:
       - "3000"
     healthcheck:
@@ -196,7 +196,7 @@ Notas:
 | `TURN_SECRET` | `GERE_COM_openssl_rand_hex_32` | Segredo longo e aleatório. Mesmo valor na API e no coturn |
 | `PUBLIC_IP` | `IP_PUBLICO_DA_VM` | IP público (Elastic IP, no caso de EC2) |
 | `PRIVATE_IP` | `IP_PRIVADO_DA_VM` | IP privado da interface da VM |
-| `MAX_VIEWERS_PER_ROOM` | `5` | Opcional |
+| `MAX_VIEWERS_PER_ROOM` | `10` | Opcional |
 | `APP_VERSION` | `0.2.0` | Versão publicada (tag sem o `v`); vira a tag das imagens |
 
 ## Portas e firewall

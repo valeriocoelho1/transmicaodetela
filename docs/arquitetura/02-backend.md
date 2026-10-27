@@ -24,7 +24,7 @@ Validadas por zod no start. Todas têm padrão, exceto as marcadas como obrigat�
 | `PORT` | `3000` | Porta HTTP |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Origens permitidas (CORS e Socket.IO), separadas por vírgula. **Obrigatória em produção** |
 | `TRUST_PROXY` | `0` | Número de proxies confiáveis à frente da API (1 em produção, atrás do Caddy) |
-| `MAX_VIEWERS_PER_ROOM` | `5` | Espectadores simultâneos por sala |
+| `MAX_VIEWERS_PER_ROOM` | `10` | Espectadores simultâneos por sala |
 | `MAX_ROOMS` | `50` | Salas simultâneas no servidor |
 | `ROOM_HOST_GRACE_MS` | `60000` | Tempo para o anfitrião voltar antes de a sala ser encerrada |
 | `VIEWER_GRACE_MS` | `20000` | Tempo que a vaga de um espectador que perdeu a conexão fica guardada para ele retomar |

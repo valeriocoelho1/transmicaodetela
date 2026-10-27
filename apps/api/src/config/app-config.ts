@@ -20,7 +20,7 @@ const envSchema = z
     PORT: z.coerce.number().int().min(0).max(65535).default(3000),
     ALLOWED_ORIGINS: list.default(['http://localhost:5173']),
     TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
-    MAX_VIEWERS_PER_ROOM: positiveInt(5),
+    MAX_VIEWERS_PER_ROOM: positiveInt(10),
     MAX_ROOMS: positiveInt(50),
     ROOM_HOST_GRACE_MS: positiveInt(60_000),
     VIEWER_GRACE_MS: positiveInt(20_000),

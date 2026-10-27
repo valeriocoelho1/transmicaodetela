@@ -31,7 +31,7 @@ Em WebRTC direto, as duas pontas trocam candidatos ICE, que contêm endereços I
 
 | Limite | Valor | Onde |
 | --- | --- | --- |
-| Espectadores por sala | 5 | `MAX_VIEWERS_PER_ROOM` |
+| Espectadores por sala | 10 | `MAX_VIEWERS_PER_ROOM` |
 | Salas simultâneas | 50 | `MAX_ROOMS` |
 | Criação de sala | 10 por minuto por IP | `ThrottlerModule` |
 | Sala sem anfitrião | 60 s de tolerância | `ROOM_HOST_GRACE_MS` |

@@ -100,7 +100,7 @@ Detalhes e regras no documento do protocolo (`04-protocolo-sinalizacao.md`).
 
 ## Limites do P2P (por que o MVP é pequeno)
 
-O anfitrião envia **uma cópia do vídeo por espectador**. Com bitrate de 2 Mbps por espectador, 5 espectadores pedem cerca de 10 Mbps de upload do anfitrião. Por isso o padrão é `MAX_VIEWERS_PER_ROOM=5`. Passar disso exige um SFU, que está fora do MVP e pode ser acrescentado depois sem mudar a API de salas.
+O anfitrião envia **uma cópia do vídeo por espectador**. Com bitrate de 2 Mbps por espectador, 10 espectadores pedem cerca de 20 Mbps de upload do anfitrião. Por isso o padrão é `MAX_VIEWERS_PER_ROOM=10`. Passar disso exige um SFU, que está fora do MVP e pode ser acrescentado depois sem mudar a API de salas.
 
 ## Topologias de execução
 

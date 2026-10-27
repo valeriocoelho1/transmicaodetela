@@ -21,7 +21,7 @@ describe('Rooms REST', () => {
       roomId,
       live: false,
       viewerCount: 0,
-      maxViewers: 5,
+      maxViewers: 10,
     });
     expect(res.body).not.toHaveProperty('hostToken');
 

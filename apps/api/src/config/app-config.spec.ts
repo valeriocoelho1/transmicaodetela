@@ -8,7 +8,7 @@ describe('loadConfig', () => {
       port: 3000,
       allowedOrigins: ['http://localhost:5173'],
       trustProxy: 0,
-      maxViewersPerRoom: 5,
+      maxViewersPerRoom: 10,
       maxRooms: 50,
       roomHostGraceMs: 60_000,
       viewerGraceMs: 20_000,
