@@ -93,6 +93,9 @@ describe('SignalingGateway', () => {
       iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
       live: false,
       hostName: 'Anfitrião',
+      selfId: expect.any(String),
+      viewers: [{ id: expect.any(String), name: 'Espectador' }],
+      maxViewers: 5,
     });
     expect(await joined).toEqual({ viewerId, name: 'Espectador' });
     expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
@@ -171,7 +174,7 @@ describe('SignalingGateway', () => {
       ['signal:answer', { viewerId: a.viewerId, sdp: answerSdp }],
     ]);
     expect(b.events).toEqual([['signal:offer', { sdp: offerSdp }]]);
-    expect(a.events).toEqual([]);
+    expect(a.events.map(([event]) => event)).toEqual(['room:viewers']);
     expect((await roomStatus(room.roomId)).status).toBe(200);
   });
 
@@ -319,6 +322,38 @@ describe('SignalingGateway', () => {
     ).emitWithAck('host:join', { roomId: room.roomId, hostToken: room.hostToken });
     expect(again).toMatchObject({ viewers: [{ viewerId: ack.viewerId, name: 'Bianca' }] });
     expect(t.logger.lines.join('\n')).not.toMatch(/Bianca|Ana Paula/);
+  });
+
+  it('20. viewers see each other by display id, never by viewerId', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const a = await joinViewer(room.roomId);
+    const listAtA = waitForEvent<{ viewers: { id: string; name: string }[] }>(
+      a.viewer,
+      'room:viewers',
+    );
+    const b = await joinViewer(room.roomId);
+    expect(b.ack.viewers).toEqual([
+      { id: a.ack.selfId, name: 'Espectador' },
+      { id: b.ack.selfId, name: 'Espectador' },
+    ]);
+    expect((await listAtA).viewers).toEqual(b.ack.viewers);
+    expect(JSON.stringify(b.ack.viewers)).not.toContain(a.viewerId);
+    expect(b.events).toEqual([]);
+
+    const renamed = waitForEvent<{ viewers: { id: string; name: string }[] }>(
+      a.viewer,
+      'room:viewers',
+    );
+    b.viewer.emit('user:rename', { name: 'Bia' });
+    expect((await renamed).viewers[1]).toEqual({ id: b.ack.selfId, name: 'Bia' });
+
+    const left = waitForEvent<{ viewers: { id: string; name: string }[] }>(
+      a.viewer,
+      'room:viewers',
+    );
+    b.viewer.disconnect();
+    expect((await left).viewers).toEqual([{ id: a.ack.selfId, name: 'Espectador' }]);
   });
 
   it('19. rejects empty, oversized or control-character names', async () => {

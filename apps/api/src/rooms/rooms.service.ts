@@ -5,6 +5,7 @@ import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-con
 
 export interface Viewer {
   socketId: string;
+  publicId: string;
   name: string;
 }
 
@@ -114,7 +115,7 @@ export class RoomsService {
     if (room.viewers.size >= this.config.maxViewersPerRoom)
       return { ok: false, error: 'ROOM_FULL' };
     const viewerId = randomUUID();
-    room.viewers.set(viewerId, { socketId, name });
+    room.viewers.set(viewerId, { socketId, publicId: randomBytes(6).toString('base64url'), name });
     return { ok: true, viewerId };
   }
 
@@ -133,6 +134,13 @@ export class RoomsService {
   viewerList(roomId: string): { viewerId: string; name: string }[] {
     return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name }]) => ({
       viewerId,
+      name,
+    }));
+  }
+
+  publicViewerList(roomId: string): { id: string; name: string }[] {
+    return [...(this.get(roomId)?.viewers.values() ?? [])].map(({ publicId, name }) => ({
+      id: publicId,
       name,
     }));
   }

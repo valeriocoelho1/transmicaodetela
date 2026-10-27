@@ -157,12 +157,14 @@ export class SignalingGateway
     socket.data = { role: 'viewer', roomId, viewerId: added.viewerId };
 
     const room = this.rooms.get(roomId);
+    const self = room?.viewers.get(added.viewerId);
     if (room?.hostSocketId) {
       this.server.to(room.hostSocketId).emit('viewer:joined', {
         viewerId: added.viewerId,
-        name: room.viewers.get(added.viewerId)?.name ?? '',
+        name: self?.name ?? '',
       });
     }
+    this.emitViewerList(roomId, socket.id);
     this.logger.log(`Room ${shortId(roomId)} viewer joined (viewers: ${room?.viewers.size ?? 0})`);
     return {
       ok: true,
@@ -170,6 +172,9 @@ export class SignalingGateway
       iceServers: this.ice.iceServers(),
       live: room?.live ?? false,
       hostName: room?.hostName ?? '',
+      selfId: self?.publicId ?? '',
+      viewers: this.rooms.publicViewerList(roomId),
+      maxViewers: this.config.maxViewersPerRoom,
     };
   }
 
@@ -191,6 +196,7 @@ export class SignalingGateway
       if (hostSocketId) {
         this.server.to(hostSocketId).emit('viewer:renamed', { viewerId: viewer.viewerId, name });
       }
+      this.emitViewerList(viewer.roomId);
     }
   }
 
@@ -276,6 +282,7 @@ export class SignalingGateway
     } else if (role === 'viewer' && viewerId && this.rooms.removeViewer(roomId, viewerId)) {
       const room = this.rooms.get(roomId);
       if (room?.hostSocketId) this.server.to(room.hostSocketId).emit('viewer:left', { viewerId });
+      this.emitViewerList(roomId);
       this.logger.log(`Room ${shortId(roomId)} viewer left (viewers: ${room?.viewers.size ?? 0})`);
     }
   }
@@ -297,6 +304,15 @@ export class SignalingGateway
   private emitToViewers(roomId: string, event: 'room:status', payload: { live: boolean }): void {
     for (const { socketId } of this.rooms.get(roomId)?.viewers.values() ?? []) {
       this.server.to(socketId).emit(event, payload);
+    }
+  }
+
+  private emitViewerList(roomId: string, exceptSocketId?: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    const viewers = this.rooms.publicViewerList(roomId);
+    for (const { socketId } of room.viewers.values()) {
+      if (socketId !== exceptSocketId) this.server.to(socketId).emit('room:viewers', { viewers });
     }
   }
 

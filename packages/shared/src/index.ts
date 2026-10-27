@@ -78,6 +78,12 @@ export interface RoomViewer {
   name: string;
 }
 
+// What viewers see of each other: a display id that is useless for signaling, never the viewerId.
+export interface PublicViewer {
+  id: string;
+  name: string;
+}
+
 export type HostJoinAck = Ack<{
   iceServers: IceServer[];
   viewers: RoomViewer[];
@@ -88,6 +94,9 @@ export type ViewerJoinAck = Ack<{
   iceServers: IceServer[];
   live: boolean;
   hostName: string;
+  selfId: string;
+  viewers: PublicViewer[];
+  maxViewers: number;
 }>;
 
 export interface ClientToServerEvents {
@@ -106,6 +115,7 @@ export interface ServerToClientEvents {
   'viewer:renamed': (payload: RoomViewer) => void;
   'viewer:left': (payload: { viewerId: string }) => void;
   'room:host-name': (payload: { name: string }) => void;
+  'room:viewers': (payload: { viewers: PublicViewer[] }) => void;
   'room:host-replaced': () => void;
   'room:status': (payload: { live: boolean }) => void;
   'room:ended': (payload: { reason: EndReason }) => void;
