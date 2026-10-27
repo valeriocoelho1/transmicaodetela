@@ -763,6 +763,7 @@ button.profile .icon {
 }
 
 .room-grid {
+  position: relative;
   display: grid;
   flex: 1;
   grid-template-rows: auto minmax(0, 1fr);
@@ -786,6 +787,52 @@ button.profile .icon {
 
 .room-side > .stack:empty {
   display: none;
+}
+
+/* Wide screens only: opens the viewer list over the video (see .room-side--popover). */
+.viewers-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.3rem 0.4rem 0.3rem 0.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--line);
+  color: var(--fg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow 160ms ease;
+}
+
+.viewers-toggle:hover {
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+}
+
+.viewers-toggle[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.viewers-toggle__avatars {
+  display: inline-flex;
+}
+
+.viewers-toggle__avatars .avatar {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.viewers-toggle__avatars .avatar + .avatar {
+  margin-left: -8px;
+}
+
+.viewers-toggle__count {
+  min-width: 1.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .link-field {
@@ -1540,8 +1587,27 @@ button.profile .icon {
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .room-grid--single {
+  .room-grid--single,
+  .room-grid--viewer {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .viewers-toggle {
+    display: inline-flex;
+  }
+
+  .room-side--popover {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 5;
+    display: none;
+    width: 20rem;
+    max-height: 100%;
+  }
+
+  .room-side--popover.is-open {
+    display: grid;
   }
 }
 

@@ -8,7 +8,7 @@ React + Vite + TypeScript. CSS simples, sem biblioteca de componentes. Toda a m�
 | --- | --- |
 | `/` | Início: explica em uma frase e tem o botão "Criar sala" |
 | `/host/:roomId` | Anfitrião: link, compartilhar tela, lista de espectadores com nomes, encerrar |
-| `/r/:roomId` | Espectador: vídeo (com tela cheia) ou estado de espera, o nome do anfitrião e a lista de espectadores, com o próprio nome marcado como "você" |
+| `/r/:roomId` | Espectador: vídeo (com tela cheia) ou estado de espera, o nome do anfitrião e a lista de espectadores, com o próprio nome marcado como "você". No computador o vídeo ocupa a largura toda e a lista abre por cima dele pelo botão "Espectadores" da barra do topo; no celular a lista fica embaixo do vídeo |
 
 Nas duas telas da sala, a barra do topo mostra o status (Ao vivo, reconectando), no espectador o título "Transmissão de {anfitrião}", e o nome da pessoa com um avatar da inicial. A página do anfitrião não mostra título visível ("Sua sala" fica só para leitores de tela), para sobrar altura para o vídeo. O nome começa aleatório (animal + adjetivo), fica no `localStorage` (`display-name`) e pode ser trocado ali; a troca vai para a sala por `user:rename`.
 
