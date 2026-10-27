@@ -1,12 +1,40 @@
-# Transmitir tela
+<div align="center">
 
-Site para transmitir a tela do computador por link. O anfitrião cria uma sala, compartilha a tela pelo navegador e envia o link; quem abrir o link assiste pelo navegador, sem login e sem instalar nada. O vídeo vai por WebRTC, direto entre os navegadores. Este repositório contém o MVP. Domínio de produção: `transmitirtela.com.br`.
+# 📺 Transmitir tela
 
-## Arquitetura
+**Transmita a tela do seu computador por um link. Sem login, sem instalar nada.**
+
+### [🔗 trasmitirtela.com.br](https://trasmitirtela.com.br)
+
+[![Site](https://img.shields.io/badge/site-trasmitirtela.com.br-e63946?style=for-the-badge)](https://trasmitirtela.com.br)
+[![CI](https://img.shields.io/github/actions/workflow/status/valeriocoelho1/transmicaodetela/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/valeriocoelho1/transmicaodetela/actions/workflows/ci.yml)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue?style=for-the-badge)](LICENSE)
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=flat-square&logo=socketdotio&logoColor=white)
+![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+
+</div>
+
+---
+
+## ✨ Como funciona
+
+1. **Crie uma sala** no site e compartilhe a tela pelo navegador.
+2. **Envie o link** para quem vai assistir.
+3. **Pronto:** quem abrir o link assiste na hora, no computador ou no celular.
+
+O vídeo vai por WebRTC, direto entre os navegadores. O servidor só apresenta um navegador ao outro e nunca vê o vídeo.
+
+## 🏗️ Arquitetura
 
 Dois planos separados. O **controle** (criar sala, entrar, trocar `offer`, `answer` e candidatos ICE) passa por uma API NestJS com Socket.IO, que guarda as salas em memória e nunca toca no vídeo. A **mídia** vai direto do navegador do anfitrião para cada espectador, uma `RTCPeerConnection` por espectador; quando o caminho direto falha, o tráfego passa por um servidor TURN (coturn) com credenciais temporárias. Em produção, o Caddy serve o site com HTTPS e encaminha `/api` e `/socket.io` para a API. Detalhes em [`docs/arquitetura/`](docs/arquitetura/).
 
-## Requisitos
+## 📋 Requisitos
 
 - Node.js LTS (a major está em `.nvmrc`)
 - pnpm (versão em `packageManager` no `package.json`)
@@ -14,7 +42,7 @@ Dois planos separados. O **controle** (criar sala, entrar, trocar `offer`, `answ
 - Para os testes e2e: o Chromium do Playwright (instalação abaixo)
 - Para produção ou para testar a stack local: Docker e Docker Compose
 
-## Instalação e desenvolvimento
+## 🚀 Instalação e desenvolvimento
 
 ```bash
 pnpm install
@@ -23,7 +51,7 @@ pnpm dev
 
 `pnpm dev` constrói `@app/shared` e sobe a API em `http://localhost:3000` e o site em `http://localhost:5173`. O Vite encaminha `/api` e `/socket.io` para a API. Em desenvolvimento nenhuma variável de ambiente é necessária. `localhost` é contexto seguro, então o compartilhamento de tela funciona sem HTTPS.
 
-## Scripts
+## 🧰 Scripts
 
 | Script              | O que faz                                                           |
 | ------------------- | ------------------------------------------------------------------- |
@@ -36,7 +64,7 @@ pnpm dev
 | `pnpm test`         | Testes unitários e de integração (sem e2e)                          |
 | `pnpm test:e2e`     | Testes Playwright em Chromium                                       |
 
-## Testes
+## 🧪 Testes
 
 - **Unitários e integração:** `pnpm test`. Vitest em `@app/shared` e `@app/web`; Jest em `@app/api`, com testes de integração que sobem a API em porta aleatória e usam `socket.io-client` e `supertest`.
 - **E2E:** na primeira vez, instale o Chromium do Playwright:
@@ -49,7 +77,7 @@ pnpm dev
 
 - **E2E contra uma stack já no ar:** `E2E_BASE_URL=https://SEU_DOMINIO pnpm test:e2e`. Não sobe servidores e aceita certificado não confiável (útil com `DOMAIN=localhost`). O cenário de sala cheia supõe `MAX_VIEWERS_PER_ROOM=2` na stack, e os de tolerância do anfitrião ficam mais lentos com o padrão de 60 s.
 
-## Variáveis de ambiente da API
+## ⚙️ Variáveis de ambiente da API
 
 Todas têm padrão, exceto as marcadas. A configuração é validada na partida; valor inválido impede a API de subir, com mensagem clara.
 
@@ -75,7 +103,7 @@ Todas têm padrão, exceto as marcadas. A configuração é validada na partida;
 
 Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.env` (veja `.env.example`): `DOMAIN`, `TURN_SECRET`, `PUBLIC_IP`, `PRIVATE_IP`, `APP_VERSION` e, opcionalmente, `MAX_VIEWERS_PER_ROOM`.
 
-## Limites do MVP
+## ⚠️ Limites
 
 - **Até 10 espectadores por sala.** O anfitrião envia uma cópia do vídeo para cada espectador (cerca de 2 Mbps cada, uns 20 Mbps com a sala cheia), então o upload dele limita a sala.
 - **Sem senha:** quem tem o link entra. Não divulgue o link publicamente.
@@ -85,7 +113,7 @@ Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.
 - Compartilhar a tela exige navegador de computador; o espectador pode estar no celular.
 - TURN só em UDP e TCP na porta 3478: redes que bloqueiam tudo exceto a 443 não são atendidas.
 
-## Produção
+## 🌐 Produção
 
 O que é preciso: uma VM Linux com Docker e Docker Compose, um domínio apontando para o IP da VM (o domínio e o `www`, que redireciona para o domínio) e, no firewall da nuvem, as portas 80/tcp, 443/tcp, 443/udp, 3478/udp e tcp e 49152–49252/udp abertas (tabela completa em [`docs/arquitetura/05-infraestrutura.md`](docs/arquitetura/05-infraestrutura.md)).
 
@@ -113,7 +141,11 @@ Encerrar todas as salas de emergência:
 docker compose -f docker-compose.prod.yml restart api
 ```
 
-### Publicar uma versão nova
+### Deploy automático
+
+Cada push na `main` roda o [workflow de CI](.github/workflows/ci.yml) (typecheck, lint, formatação, testes e build). Se tudo passar, a branch `production` aponta para aquele commit, e um timer systemd na VM publica a versão nova em até 2 minutos, sem nenhum segredo guardado no GitHub. Detalhes e instalação em [`docs/arquitetura/05-infraestrutura.md`](docs/arquitetura/05-infraestrutura.md#deploy-automático).
+
+### Publicar uma versão manualmente
 
 Cada versão é uma tag `vX.Y.Z` na `main` (SemVer), descrita no [`CHANGELOG.md`](CHANGELOG.md). Na VM:
 
@@ -143,25 +175,21 @@ Manutenção mensal: `pnpm audit`, `pnpm outdated`, reconstruir as imagens (`up 
 
 O Caddy emite e renova o certificado HTTPS sozinho. O coturn roda com `network_mode: host`. O passo a passo da VM (conta na nuvem, domínio, DNS, firewall, validação do TURN, teste entre redes) está no guia de operação, fora do repositório.
 
-## Fora do MVP
-
-Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, mediasoup, Janus), gravação, aplicativo desktop, anfitrião no celular, mais de um anfitrião por sala, painel de métricas ou saúde da live, perfis de qualidade escolhidos pelo usuário, traduções além de pt-BR, analytics, TURN sobre TLS na porta 443.
-
-## Estrutura
+## 🗂️ Estrutura
 
 ```
 apps/api/          API NestJS (@app/api)
 apps/web/          site React + Vite (@app/web)
 packages/shared/   schemas e tipos compartilhados (@app/shared)
 e2e/               testes Playwright (@app/e2e)
-deploy/            Caddyfile
+deploy/            Caddyfile, script e timer do deploy automático
 docs/              stack e arquitetura
 ```
 
-## Documentação
+## 📚 Documentação
 
 Veja [`docs/`](docs/): [`stack.md`](docs/stack.md) e [`arquitetura/`](docs/arquitetura/).
 
-## Licença
+## 📄 Licença
 
 [MIT](LICENSE).
