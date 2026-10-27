@@ -28,10 +28,10 @@ const viewerId = z.uuid();
 const hostToken = z.string().min(20).max(128);
 const resumeToken = z.string().min(20).max(128);
 
-// The animation each person picks for their mini profile; only these presets exist.
-export const PROFILE_EFFECTS = ['sparkle', 'bounce', 'rainbow', 'pulse', 'wiggle'] as const;
-export const profileEffect = z.enum(PROFILE_EFFECTS);
-export type ProfileEffect = z.infer<typeof profileEffect>;
+// The animated profile picture each person picks; only these presets exist.
+export const PROFILE_AVATARS = ['pointing', 'kitten', 'dancing', 'tongue'] as const;
+export const profileAvatar = z.enum(PROFILE_AVATARS);
+export type ProfileAvatar = z.infer<typeof profileAvatar>;
 export const displayName = z
   .string()
   .trim()
@@ -56,17 +56,17 @@ export const hostJoinPayload = z.object({
   roomId,
   hostToken,
   name: displayName.optional(),
-  effect: profileEffect.optional(),
+  avatar: profileAvatar.optional(),
 });
 export const hostLivePayload = z.object({ live: z.boolean() });
 export const viewerJoinPayload = z.object({
   roomId,
   name: displayName.optional(),
-  effect: profileEffect.optional(),
+  avatar: profileAvatar.optional(),
   // Sent after a dropped connection to keep the same seat and video connection.
   resume: z.object({ viewerId, token: resumeToken, needsOffer: z.boolean() }).optional(),
 });
-export const profilePayload = z.object({ name: displayName, effect: profileEffect });
+export const profilePayload = z.object({ name: displayName, avatar: profileAvatar });
 export const offerPayload = z.object({ viewerId, sdp: offerSdp });
 export const answerPayload = z.object({ sdp: answerSdp });
 export const iceFromHostPayload = z.object({ viewerId, candidate: iceCandidate });
@@ -93,14 +93,14 @@ export interface IceServer {
 export interface RoomViewer {
   viewerId: string;
   name: string;
-  effect: ProfileEffect;
+  avatar: ProfileAvatar;
 }
 
 // What viewers see of each other: a display id that is useless for signaling, never the viewerId.
 export interface PublicViewer {
   id: string;
   name: string;
-  effect: ProfileEffect;
+  avatar: ProfileAvatar;
 }
 
 export type HostJoinAck = Ack<{
@@ -110,7 +110,7 @@ export type HostJoinAck = Ack<{
 }>;
 export interface RoomHost {
   name: string;
-  effect: ProfileEffect;
+  avatar: ProfileAvatar;
   online: boolean;
 }
 

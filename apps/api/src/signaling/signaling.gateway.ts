@@ -25,7 +25,7 @@ import {
 } from '@app/shared';
 import type { Server, Socket } from 'socket.io';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
-import { DEFAULT_EFFECT, RoomsService } from '../rooms/rooms.service';
+import { DEFAULT_AVATAR, RoomsService } from '../rooms/rooms.service';
 import { ConnectionLimiter } from './connection-limiter';
 import { IceService } from './ice.service';
 
@@ -105,12 +105,12 @@ export class SignalingGateway
   hostJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): HostJoinAck {
     const parsed = hostJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId, hostToken, name, effect } = parsed.data;
+    const { roomId, hostToken, name, avatar } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (!this.rooms.verifyHost(roomId, hostToken)) return { ok: false, error: 'INVALID_TOKEN' };
 
     if (socket.data.roomId) this.leave(socket, true);
-    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name, effect);
+    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name, avatar);
     socket.data = { role: 'host', roomId };
     if (previousSocketId) {
       const previous = this.socket(previousSocketId);
@@ -153,7 +153,7 @@ export class SignalingGateway
   viewerJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): ViewerJoinAck {
     const parsed = viewerJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId, name, effect } = parsed.data;
+    const { roomId, name, avatar } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
 
     if (socket.data.roomId) this.leave(socket, true);
@@ -172,7 +172,7 @@ export class SignalingGateway
         previous.disconnect(true);
       }
     } else {
-      const added = this.rooms.addViewer(roomId, socket.id, name, effect);
+      const added = this.rooms.addViewer(roomId, socket.id, name, avatar);
       if (!added.ok) return added;
       viewerId = added.viewerId;
       resumeToken = added.resumeToken;
@@ -186,7 +186,7 @@ export class SignalingGateway
       this.server.to(room.hostSocketId).emit('viewer:joined', {
         viewerId,
         name: self?.name ?? '',
-        effect: self?.effect ?? DEFAULT_EFFECT,
+        avatar: self?.avatar ?? DEFAULT_AVATAR,
       });
     }
     if (!resumed) {
@@ -206,7 +206,7 @@ export class SignalingGateway
       live: room?.live ?? false,
       host: {
         name: room?.hostName ?? '',
-        effect: room?.hostEffect ?? DEFAULT_EFFECT,
+        avatar: room?.hostAvatar ?? DEFAULT_AVATAR,
         online: Boolean(room?.hostSocketId),
       },
       selfId: self?.publicId ?? '',
@@ -222,18 +222,18 @@ export class SignalingGateway
     const viewer = this.viewerRoom(socket);
     if (!hostRoomId && !viewer) return;
     if (!parsed.success) return this.dropInvalid('user:profile');
-    const { name, effect } = parsed.data;
+    const { name, avatar } = parsed.data;
     if (hostRoomId) {
-      this.rooms.updateHost(hostRoomId, name, effect);
+      this.rooms.updateHost(hostRoomId, name, avatar);
       this.emitHost(hostRoomId);
       return;
     }
-    if (viewer && this.rooms.updateViewer(viewer.roomId, viewer.viewerId, name, effect)) {
+    if (viewer && this.rooms.updateViewer(viewer.roomId, viewer.viewerId, name, avatar)) {
       const hostSocketId = this.rooms.get(viewer.roomId)?.hostSocketId;
       if (hostSocketId) {
         this.server
           .to(hostSocketId)
-          .emit('viewer:updated', { viewerId: viewer.viewerId, name, effect });
+          .emit('viewer:updated', { viewerId: viewer.viewerId, name, avatar });
       }
       this.emitViewerList(viewer.roomId);
     }
@@ -377,7 +377,7 @@ export class SignalingGateway
     if (!room) return;
     const host = {
       name: room.hostName,
-      effect: room.hostEffect,
+      avatar: room.hostAvatar,
       online: room.hostSocketId !== null,
     };
     for (const socketId of this.rooms.viewerSocketIds(roomId)) {

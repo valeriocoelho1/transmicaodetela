@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type EndReason, type PublicViewer, ROOM_ID_REGEX, type RoomHost } from '@app/shared';
+import {
+  type EndReason,
+  type PublicViewer,
+  ROOM_ID_REGEX,
+  type RoomHost,
+  type ViewerJoinAck,
+} from '@app/shared';
 import { SERVER_DROP_RETRY_MS } from '../config';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
 import { ViewerReceiver } from '../lib/webrtc/viewer-receiver';
@@ -122,11 +128,17 @@ export function useViewerSession(roomId: string, profile: Profile) {
     });
     socket.on('connect', async () => {
       const resume = resumeRef.current;
-      const ack = await socket.emitWithAck('viewer:join', {
-        roomId,
-        ...profileRef.current,
-        resume: resume ? { ...resume, needsOffer: !receiver.connected } : undefined,
-      });
+      let ack: ViewerJoinAck;
+      try {
+        ack = await socket.emitWithAck('viewer:join', {
+          roomId,
+          ...profileRef.current,
+          resume: resume ? { ...resume, needsOffer: !receiver.connected } : undefined,
+        });
+      } catch {
+        // The connection dropped before the answer; the next connect joins again.
+        return;
+      }
       if (isFinal()) return;
       if (!ack.ok) {
         setState(ack.error === 'ROOM_FULL' ? 'full' : 'not_found');
@@ -144,7 +156,7 @@ export function useViewerSession(roomId: string, profile: Profile) {
       // A profile change made while the connection was down never reached the server.
       const self = ack.viewers.find((viewer) => viewer.id === ack.selfId);
       const mine = profileRef.current;
-      if (self && (self.name !== mine.name || self.effect !== mine.effect)) {
+      if (self && (self.name !== mine.name || self.avatar !== mine.avatar)) {
         socket.emit('user:profile', mine);
       }
       if (ack.resumed && ack.live && receiver.connected) return;
@@ -170,7 +182,7 @@ export function useViewerSession(roomId: string, profile: Profile) {
 
   useEffect(() => {
     const current = profileRef.current;
-    if (current.name === profile.name && current.effect === profile.effect) return;
+    if (current.name === profile.name && current.avatar === profile.avatar) return;
     profileRef.current = profile;
     if (joinedRef.current) sessionRef.current?.socket.emit('user:profile', profile);
   }, [profile]);

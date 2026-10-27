@@ -1,8 +1,8 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
-import { MAX_DISPLAY_NAME_LENGTH, PROFILE_EFFECTS } from '@app/shared';
+import { MAX_DISPLAY_NAME_LENGTH, PROFILE_AVATARS } from '@app/shared';
 import type { Profile } from '../hooks/useProfile';
 import { parseDisplayName } from '../lib/display-name';
-import { EFFECT_LABELS } from '../lib/profile-effect';
+import { AVATAR_LABELS } from '../lib/profile-avatar';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Icon } from './Icon';
@@ -38,8 +38,8 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!draft || !parsedName) return;
-    if (parsedName !== profile.name || draft.effect !== profile.effect) {
-      onChange({ name: parsedName, effect: draft.effect });
+    if (parsedName !== profile.name || draft.avatar !== profile.avatar) {
+      onChange({ name: parsedName, avatar: draft.avatar });
     }
     setDraft(null);
   }
@@ -55,7 +55,7 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
           aria-label={`Seu perfil: ${profile.name}. Editar`}
           aria-expanded={draft !== null}
         >
-          <Avatar name={profile.name} />
+          <Avatar avatar={profile.avatar} />
           <span className="profile__name">{profile.name}</span>
           <Icon name="edit" size={16} />
         </button>
@@ -64,7 +64,7 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
       {draft && (
         <form className="profile-editor" onSubmit={submit} aria-label="Editar perfil">
           <div className="profile-editor__preview">
-            <Avatar name={parsedName ?? profile.name} size={64} effect={draft.effect} />
+            <Avatar avatar={draft.avatar} size={72} />
           </div>
           <label className="profile-editor__field">
             <span>Seu nome</span>
@@ -78,20 +78,20 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
               onFocus={(event) => event.currentTarget.select()}
             />
           </label>
-          <fieldset className="effect-picker">
-            <legend>Animação do perfil</legend>
-            <div className="effect-picker__options">
-              {PROFILE_EFFECTS.map((effect) => (
-                <label key={effect} className="effect-picker__option">
+          <fieldset className="avatar-picker">
+            <legend>Foto do perfil</legend>
+            <div className="avatar-picker__options">
+              {PROFILE_AVATARS.map((avatar) => (
+                <label key={avatar} className="avatar-picker__option">
                   <input
                     type="radio"
-                    name="profile-effect"
-                    value={effect}
-                    checked={draft.effect === effect}
-                    onChange={() => setDraft({ ...draft, effect })}
+                    name="profile-avatar"
+                    value={avatar}
+                    checked={draft.avatar === avatar}
+                    onChange={() => setDraft({ ...draft, avatar })}
                   />
-                  <Avatar name={parsedName ?? profile.name} size={34} effect={effect} />
-                  <span>{EFFECT_LABELS[effect]}</span>
+                  <Avatar avatar={avatar} size={44} />
+                  <span>{AVATAR_LABELS[avatar]}</span>
                 </label>
               ))}
             </div>

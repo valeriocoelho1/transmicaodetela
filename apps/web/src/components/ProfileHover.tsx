@@ -1,12 +1,11 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { EFFECT_LABELS } from '../lib/profile-effect';
 import type { Profile } from '../hooks/useProfile';
 import { Avatar } from './Avatar';
 
 const OPEN_DELAY_MS = 200;
 const CARD_WIDTH = 240;
-const CARD_HEIGHT = 210;
+const CARD_HEIGHT = 200;
 const GAP = 10;
 
 interface ProfileHoverProps {
@@ -78,10 +77,9 @@ export function ProfileHover({
             className="profile-card"
             style={{ top: position.top, left: position.left, width: CARD_WIDTH }}
           >
-            <Avatar name={profile.name} size={72} effect={profile.effect} />
+            <Avatar avatar={profile.avatar} size={96} />
             <p className="profile-card__name">{profile.name}</p>
             {role && <p className="profile-card__role">{role}</p>}
-            <p className="profile-card__effect">{EFFECT_LABELS[profile.effect]}</p>
           </div>,
           document.body,
         )}

@@ -13,7 +13,7 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - Fontes Tiny5 e Rubik servidas pelo próprio site.
 - Nome na sala: cada pessoa começa com um nome aleatório, que pode trocar no topo da página, com um avatar da inicial.
 - Lista de espectadores com os nomes no lugar dos lugares ocupados; o espectador vê o nome do anfitrião.
-- Mini perfil ao passar o mouse sobre uma pessoa, com o nome inteiro e uma animação que cada um escolhe pelo lápis entre cinco presets (Brilhos, Pulinho, Arco-íris, Pulsar e Balanço).
+- Foto de perfil animada, escolhida pelo lápis entre quatro presets (Apontando, Gatinho, Dancinha e Linguinha), e mini perfil ao passar o mouse sobre uma pessoa, com a foto grande e o nome inteiro.
 - Tela cheia no celular, inclusive no iPhone, girando para deitado ou em pé conforme o formato da tela transmitida.
 - Carregamento com um círculo girando suave no lugar do quadrado.
 - O espectador também vê a lista de espectadores, com o próprio nome marcado como "você".

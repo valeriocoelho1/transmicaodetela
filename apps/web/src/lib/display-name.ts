@@ -73,15 +73,3 @@ export function saveDisplayName(name: string): void {
     // Storage may be unavailable; the name still applies to this visit.
   }
 }
-
-export function initialOf(name: string): string {
-  return (Array.from(name.trim())[0] ?? '?').toLocaleUpperCase('pt-BR');
-}
-
-const avatarColors = ['#ffd23f', '#ff7a6e', '#7fe0a8', '#8fa2ff', '#ffb36b', '#e59bff', '#6fd6e8'];
-
-export function avatarColor(name: string): string {
-  let hash = 0;
-  for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
-  return avatarColors[hash % avatarColors.length]!;
-}

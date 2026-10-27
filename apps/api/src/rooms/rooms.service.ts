@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import { Inject, Injectable } from '@nestjs/common';
 import {
   type EndReason,
-  type ProfileEffect,
+  type ProfileAvatar,
   type PublicViewer,
   ROOM_ID_REGEX,
   type RoomViewer,
@@ -14,7 +14,7 @@ export interface Viewer {
   socketId: string | null;
   publicId: string;
   name: string;
-  effect: ProfileEffect;
+  avatar: ProfileAvatar;
   resumeTokenHash: Buffer;
   disconnectedAt: number | null;
 }
@@ -27,14 +27,14 @@ export interface Room {
   hostSocketId: string | null;
   hostDisconnectedAt: number | null;
   hostName: string;
-  hostEffect: ProfileEffect;
+  hostAvatar: ProfileAvatar;
   live: boolean;
   viewers: Map<string, Viewer>;
 }
 
 export const DEFAULT_HOST_NAME = 'Anfitrião';
 export const DEFAULT_VIEWER_NAME = 'Espectador';
-export const DEFAULT_EFFECT: ProfileEffect = 'pulse';
+export const DEFAULT_AVATAR: ProfileAvatar = 'kitten';
 
 export class RoomLimitReachedError extends Error {
   constructor() {
@@ -78,7 +78,7 @@ export class RoomsService {
       hostSocketId: null,
       hostDisconnectedAt: null,
       hostName: DEFAULT_HOST_NAME,
-      hostEffect: DEFAULT_EFFECT,
+      hostAvatar: DEFAULT_AVATAR,
       live: false,
       viewers: new Map(),
     });
@@ -100,7 +100,7 @@ export class RoomsService {
     roomId: string,
     socketId: string,
     name?: string,
-    effect?: ProfileEffect,
+    avatar?: ProfileAvatar,
   ): { previousSocketId: string | null } {
     const room = this.get(roomId);
     if (!room) return { previousSocketId: null };
@@ -108,7 +108,7 @@ export class RoomsService {
     room.hostEverJoined = true;
     room.hostSocketId = socketId;
     if (name) room.hostName = name;
-    if (effect) room.hostEffect = effect;
+    if (avatar) room.hostAvatar = avatar;
     room.hostDisconnectedAt = null;
     return { previousSocketId: previous !== socketId ? previous : null };
   }
@@ -135,7 +135,7 @@ export class RoomsService {
     roomId: string,
     socketId: string,
     name = DEFAULT_VIEWER_NAME,
-    effect: ProfileEffect = DEFAULT_EFFECT,
+    avatar: ProfileAvatar = DEFAULT_AVATAR,
   ): AddViewerResult {
     const room = this.get(roomId);
     if (!room) return { ok: false, error: 'ROOM_NOT_FOUND' };
@@ -147,7 +147,7 @@ export class RoomsService {
       socketId,
       publicId: randomBytes(6).toString('base64url'),
       name,
-      effect,
+      avatar,
       resumeTokenHash: sha256(resumeToken),
       disconnectedAt: null,
     });
@@ -188,34 +188,34 @@ export class RoomsService {
     return room.viewers.delete(viewerId);
   }
 
-  updateHost(roomId: string, name: string, effect: ProfileEffect): void {
+  updateHost(roomId: string, name: string, avatar: ProfileAvatar): void {
     const room = this.get(roomId);
     if (!room) return;
     room.hostName = name;
-    room.hostEffect = effect;
+    room.hostAvatar = avatar;
   }
 
-  updateViewer(roomId: string, viewerId: string, name: string, effect: ProfileEffect): boolean {
+  updateViewer(roomId: string, viewerId: string, name: string, avatar: ProfileAvatar): boolean {
     const viewer = this.get(roomId)?.viewers.get(viewerId);
     if (!viewer) return false;
     viewer.name = name;
-    viewer.effect = effect;
+    viewer.avatar = avatar;
     return true;
   }
 
   viewerList(roomId: string): RoomViewer[] {
-    return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name, effect }]) => ({
+    return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name, avatar }]) => ({
       viewerId,
       name,
-      effect,
+      avatar,
     }));
   }
 
   publicViewerList(roomId: string): PublicViewer[] {
-    return [...(this.get(roomId)?.viewers.values() ?? [])].map(({ publicId, name, effect }) => ({
+    return [...(this.get(roomId)?.viewers.values() ?? [])].map(({ publicId, name, avatar }) => ({
       id: publicId,
       name,
-      effect,
+      avatar,
     }));
   }
 

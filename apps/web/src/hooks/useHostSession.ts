@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { EndReason, RoomViewer } from '@app/shared';
+import type { EndReason, HostJoinAck, RoomViewer } from '@app/shared';
 import { CAPTURE_STUCK_HINT_MS, SERVER_DROP_RETRY_MS } from '../config';
 import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
 import { clearHostToken, getHostToken } from '../lib/host-token';
@@ -118,11 +118,13 @@ export function useHostSession(roomId: string, profile: Profile) {
       }
     });
     socket.on('connect', async () => {
-      const ack = await socket.emitWithAck('host:join', {
-        roomId,
-        hostToken,
-        ...profileRef.current,
-      });
+      let ack: HostJoinAck;
+      try {
+        ack = await socket.emitWithAck('host:join', { roomId, hostToken, ...profileRef.current });
+      } catch {
+        // The connection dropped before the answer; the next connect joins again.
+        return;
+      }
       if (cancelled || stateRef.current === 'ended') return;
       if (!ack.ok) {
         setState('not_found');
@@ -166,7 +168,7 @@ export function useHostSession(roomId: string, profile: Profile) {
 
   useEffect(() => {
     const current = profileRef.current;
-    if (current.name === profile.name && current.effect === profile.effect) return;
+    if (current.name === profile.name && current.avatar === profile.avatar) return;
     profileRef.current = profile;
     if (joinedRef.current) sessionRef.current?.socket.emit('user:profile', profile);
   }, [profile]);

@@ -94,12 +94,12 @@ describe('SignalingGateway', () => {
       resumeToken: expect.any(String),
       resumed: false,
       live: false,
-      host: { name: 'Anfitrião', effect: 'pulse', online: true },
+      host: { name: 'Anfitrião', avatar: 'kitten', online: true },
       selfId: expect.any(String),
-      viewers: [{ id: expect.any(String), name: 'Espectador', effect: 'pulse' }],
+      viewers: [{ id: expect.any(String), name: 'Espectador', avatar: 'kitten' }],
       maxViewers: 10,
     });
-    expect(await joined).toEqual({ viewerId, name: 'Espectador', effect: 'pulse' });
+    expect(await joined).toEqual({ viewerId, name: 'Espectador', avatar: 'kitten' });
     expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
   });
 
@@ -170,8 +170,8 @@ describe('SignalingGateway', () => {
     await offerToB;
 
     expect(hostEvents).toEqual([
-      ['viewer:joined', { viewerId: a.viewerId, name: 'Espectador', effect: 'pulse' }],
-      ['viewer:joined', { viewerId: b.viewerId, name: 'Espectador', effect: 'pulse' }],
+      ['viewer:joined', { viewerId: a.viewerId, name: 'Espectador', avatar: 'kitten' }],
+      ['viewer:joined', { viewerId: b.viewerId, name: 'Espectador', avatar: 'kitten' }],
       ['signal:ice', { viewerId: a.viewerId, candidate }],
       ['signal:answer', { viewerId: a.viewerId, sdp: answerSdp }],
     ]);
@@ -239,7 +239,7 @@ describe('SignalingGateway', () => {
     const again = await joinHost(room.roomId, room.hostToken);
     expect(again.ack).toMatchObject({
       ok: true,
-      viewers: [{ viewerId, name: 'Espectador', effect: 'pulse' }],
+      viewers: [{ viewerId, name: 'Espectador', avatar: 'kitten' }],
     });
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect((await roomStatus(room.roomId)).status).toBe(200);
@@ -298,36 +298,36 @@ describe('SignalingGateway', () => {
     await waitUntil(async () => (await roomStatus(room.roomId)).status === 404);
   });
 
-  it('18. shares names and profile effects on join and relays profile changes', async () => {
+  it('18. shares names and profile avatars on join and relays profile changes', async () => {
     t = await startApp();
     const room = await t.createRoom();
     const host = await t.connect();
-    await host.emitWithAck('host:join', { ...room, name: '  Ana  ', effect: 'sparkle' });
+    await host.emitWithAck('host:join', { ...room, name: '  Ana  ', avatar: 'pointing' });
 
     const joined = waitForEvent(host, 'viewer:joined');
     const viewer = await t.connect();
     const ack: ViewerJoinAck = await viewer.emitWithAck('viewer:join', {
       roomId: room.roomId,
       name: 'Bia',
-      effect: 'bounce',
+      avatar: 'dancing',
     });
     if (!ack.ok) throw new Error(ack.error);
-    expect(ack.host).toEqual({ name: 'Ana', effect: 'sparkle', online: true });
-    expect(await joined).toEqual({ viewerId: ack.viewerId, name: 'Bia', effect: 'bounce' });
+    expect(ack.host).toEqual({ name: 'Ana', avatar: 'pointing', online: true });
+    expect(await joined).toEqual({ viewerId: ack.viewerId, name: 'Bia', avatar: 'dancing' });
 
     const updated = waitForEvent(host, 'viewer:updated');
-    viewer.emit('user:profile', { name: 'Bianca', effect: 'wiggle' });
-    expect(await updated).toEqual({ viewerId: ack.viewerId, name: 'Bianca', effect: 'wiggle' });
+    viewer.emit('user:profile', { name: 'Bianca', avatar: 'tongue' });
+    expect(await updated).toEqual({ viewerId: ack.viewerId, name: 'Bianca', avatar: 'tongue' });
 
     const hostName = waitForEvent(viewer, 'room:host');
-    host.emit('user:profile', { name: 'Ana Paula', effect: 'rainbow' });
-    expect(await hostName).toEqual({ name: 'Ana Paula', effect: 'rainbow', online: true });
+    host.emit('user:profile', { name: 'Ana Paula', avatar: 'kitten' });
+    expect(await hostName).toEqual({ name: 'Ana Paula', avatar: 'kitten', online: true });
 
     const again: HostJoinAck = await (
       await t.connect()
     ).emitWithAck('host:join', { roomId: room.roomId, hostToken: room.hostToken });
     expect(again).toMatchObject({
-      viewers: [{ viewerId: ack.viewerId, name: 'Bianca', effect: 'wiggle' }],
+      viewers: [{ viewerId: ack.viewerId, name: 'Bianca', avatar: 'tongue' }],
     });
     expect(t.logger.lines.join('\n')).not.toMatch(/Bianca|Ana Paula/);
   });
@@ -342,8 +342,8 @@ describe('SignalingGateway', () => {
     );
     const b = await joinViewer(room.roomId);
     expect(b.ack.viewers).toEqual([
-      { id: a.ack.selfId, name: 'Espectador', effect: 'pulse' },
-      { id: b.ack.selfId, name: 'Espectador', effect: 'pulse' },
+      { id: a.ack.selfId, name: 'Espectador', avatar: 'kitten' },
+      { id: b.ack.selfId, name: 'Espectador', avatar: 'kitten' },
     ]);
     expect((await listAtA).viewers).toEqual(b.ack.viewers);
     expect(JSON.stringify(b.ack.viewers)).not.toContain(a.viewerId);
@@ -353,11 +353,11 @@ describe('SignalingGateway', () => {
       a.viewer,
       'room:viewers',
     );
-    b.viewer.emit('user:profile', { name: 'Bia', effect: 'sparkle' });
+    b.viewer.emit('user:profile', { name: 'Bia', avatar: 'pointing' });
     expect((await renamed).viewers[1]).toEqual({
       id: b.ack.selfId,
       name: 'Bia',
-      effect: 'sparkle',
+      avatar: 'pointing',
     });
 
     const left = waitForEvent<{ viewers: { id: string; name: string }[] }>(
@@ -366,7 +366,7 @@ describe('SignalingGateway', () => {
     );
     b.viewer.disconnect();
     expect((await left).viewers).toEqual([
-      { id: a.ack.selfId, name: 'Espectador', effect: 'pulse' },
+      { id: a.ack.selfId, name: 'Espectador', avatar: 'kitten' },
     ]);
   });
 
@@ -416,7 +416,7 @@ describe('SignalingGateway', () => {
       roomId: room.roomId,
       resume: { viewerId, token: ack.resumeToken, needsOffer: true },
     });
-    expect(await joinedAgain).toEqual({ viewerId, name: 'Espectador', effect: 'pulse' });
+    expect(await joinedAgain).toEqual({ viewerId, name: 'Espectador', avatar: 'kitten' });
   });
 
   it('23. an away viewer is removed after VIEWER_GRACE_MS and a wrong token gets a new seat', async () => {
@@ -449,21 +449,21 @@ describe('SignalingGateway', () => {
 
     const offline = waitForEvent(viewer, 'room:host');
     dropConnection(host);
-    expect(await offline).toEqual({ name: 'Anfitrião', effect: 'pulse', online: false });
+    expect(await offline).toEqual({ name: 'Anfitrião', avatar: 'kitten', online: false });
     expect((await roomStatus(room.roomId)).body.live).toBe(true);
 
     const online = waitForEvent(viewer, 'room:host');
     await joinHost(room.roomId, room.hostToken);
-    expect(await online).toEqual({ name: 'Anfitrião', effect: 'pulse', online: true });
+    expect(await online).toEqual({ name: 'Anfitrião', avatar: 'kitten', online: true });
     expect(events.map(([event]) => event)).not.toContain('room:status');
   });
 
-  it('25. rejects an effect outside the presets', async () => {
+  it('25. rejects an avatar outside the presets', async () => {
     t = await startApp();
     const room = await t.createRoom();
     const socket = await t.connect();
     expect(
-      await socket.emitWithAck('viewer:join', { roomId: room.roomId, effect: 'confetti' } as never),
+      await socket.emitWithAck('viewer:join', { roomId: room.roomId, avatar: 'confetti' } as never),
     ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
   });
 

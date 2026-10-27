@@ -1,33 +1,40 @@
-import type { CSSProperties } from 'react';
-import type { ProfileEffect } from '@app/shared';
-import { avatarColor, initialOf } from '../lib/display-name';
+import type { ProfileAvatar } from '@app/shared';
+import { AVATAR_CLIPS } from '../lib/profile-avatar';
 
 interface AvatarProps {
-  name: string;
+  avatar: ProfileAvatar;
   size?: number;
-  // Plays the person's chosen animation around the avatar.
-  effect?: ProfileEffect;
 }
 
-export function Avatar({ name, size = 40, effect }: AvatarProps) {
-  const color = avatarColor(name);
-  const avatar = (
-    <span
-      className="avatar"
-      style={{ width: size, height: size, fontSize: size * 0.45, background: color }}
-      aria-hidden="true"
-    >
-      {initialOf(name)}
-    </span>
-  );
-  if (!effect) return avatar;
+const reducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Browsers only autoplay muted media; setting the property here avoids relying on the attribute.
+function startMuted(video: HTMLVideoElement | null) {
+  if (!video) return;
+  video.muted = true;
+  // Older engines (and jsdom) return nothing from play().
+  if (!reducedMotion()) video.play()?.catch(() => undefined);
+}
+
+export function Avatar({ avatar, size = 40 }: AvatarProps) {
+  // A server from another release may send a picture this page does not know.
+  const clip = AVATAR_CLIPS[avatar] ?? AVATAR_CLIPS.kitten;
   return (
-    <span
-      className={`avatar-fx avatar-fx--${effect}`}
-      style={{ width: size, height: size, '--avatar-color': color } as CSSProperties}
-      aria-hidden="true"
-    >
-      {avatar}
+    <span className="avatar" style={{ width: size, height: size }} aria-hidden="true">
+      <video
+        key={avatar}
+        ref={startMuted}
+        src={clip.video}
+        poster={clip.poster}
+        loop
+        muted
+        playsInline
+        disablePictureInPicture
+        preload={reducedMotion() ? 'none' : 'auto'}
+        tabIndex={-1}
+      />
     </span>
   );
 }

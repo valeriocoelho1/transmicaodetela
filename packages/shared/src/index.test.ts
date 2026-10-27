@@ -3,8 +3,8 @@ import {
   answerPayload,
   createRoomResponse,
   displayName,
-  PROFILE_EFFECTS,
-  profileEffect,
+  PROFILE_AVATARS,
+  profileAvatar,
   healthResponse,
   hostJoinPayload,
   hostLivePayload,
@@ -66,13 +66,13 @@ describe('displayName', () => {
   });
 });
 
-describe('profileEffect', () => {
-  it('accepts only the five presets', () => {
-    expect(PROFILE_EFFECTS).toHaveLength(5);
-    for (const effect of PROFILE_EFFECTS)
-      expect(profileEffect.safeParse(effect).success).toBe(true);
-    expect(profileEffect.safeParse('confetti').success).toBe(false);
-    expect(profileEffect.safeParse('').success).toBe(false);
+describe('profileAvatar', () => {
+  it('accepts only the four presets', () => {
+    expect(PROFILE_AVATARS).toHaveLength(4);
+    for (const avatar of PROFILE_AVATARS)
+      expect(profileAvatar.safeParse(avatar).success).toBe(true);
+    expect(profileAvatar.safeParse('confetti').success).toBe(false);
+    expect(profileAvatar.safeParse('').success).toBe(false);
   });
 });
 
