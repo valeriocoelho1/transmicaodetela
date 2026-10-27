@@ -18,14 +18,14 @@ import {
   iceFromHostPayload,
   iceFromViewerPayload,
   offerPayload,
-  renamePayload,
+  profilePayload,
   type ServerToClientEvents,
   viewerJoinPayload,
   type ViewerJoinAck,
 } from '@app/shared';
 import type { Server, Socket } from 'socket.io';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
-import { RoomsService } from '../rooms/rooms.service';
+import { DEFAULT_EFFECT, RoomsService } from '../rooms/rooms.service';
 import { ConnectionLimiter } from './connection-limiter';
 import { IceService } from './ice.service';
 
@@ -105,12 +105,12 @@ export class SignalingGateway
   hostJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): HostJoinAck {
     const parsed = hostJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId, hostToken, name } = parsed.data;
+    const { roomId, hostToken, name, effect } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (!this.rooms.verifyHost(roomId, hostToken)) return { ok: false, error: 'INVALID_TOKEN' };
 
     if (socket.data.roomId) this.leave(socket, true);
-    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name);
+    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name, effect);
     socket.data = { role: 'host', roomId };
     if (previousSocketId) {
       const previous = this.socket(previousSocketId);
@@ -153,7 +153,7 @@ export class SignalingGateway
   viewerJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): ViewerJoinAck {
     const parsed = viewerJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId, name } = parsed.data;
+    const { roomId, name, effect } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
 
     if (socket.data.roomId) this.leave(socket, true);
@@ -172,7 +172,7 @@ export class SignalingGateway
         previous.disconnect(true);
       }
     } else {
-      const added = this.rooms.addViewer(roomId, socket.id, name);
+      const added = this.rooms.addViewer(roomId, socket.id, name, effect);
       if (!added.ok) return added;
       viewerId = added.viewerId;
       resumeToken = added.resumeToken;
@@ -183,7 +183,11 @@ export class SignalingGateway
     const self = room?.viewers.get(viewerId);
     // A resumed viewer whose video connection survived needs nothing from the host.
     if (room?.hostSocketId && (!resumed || resume?.needsOffer)) {
-      this.server.to(room.hostSocketId).emit('viewer:joined', { viewerId, name: self?.name ?? '' });
+      this.server.to(room.hostSocketId).emit('viewer:joined', {
+        viewerId,
+        name: self?.name ?? '',
+        effect: self?.effect ?? DEFAULT_EFFECT,
+      });
     }
     if (!resumed) {
       this.emitViewerList(roomId, socket.id);
@@ -200,30 +204,36 @@ export class SignalingGateway
       resumed: resumed !== null,
       iceServers: this.ice.iceServers(),
       live: room?.live ?? false,
-      host: { name: room?.hostName ?? '', online: Boolean(room?.hostSocketId) },
+      host: {
+        name: room?.hostName ?? '',
+        effect: room?.hostEffect ?? DEFAULT_EFFECT,
+        online: Boolean(room?.hostSocketId),
+      },
       selfId: self?.publicId ?? '',
       viewers: this.rooms.publicViewerList(roomId),
       maxViewers: this.config.maxViewersPerRoom,
     };
   }
 
-  @SubscribeMessage('user:rename')
-  rename(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): void {
-    const parsed = renamePayload.safeParse(body);
+  @SubscribeMessage('user:profile')
+  updateProfile(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): void {
+    const parsed = profilePayload.safeParse(body);
     const hostRoomId = this.hostRoom(socket);
     const viewer = this.viewerRoom(socket);
     if (!hostRoomId && !viewer) return;
-    if (!parsed.success) return this.dropInvalid('user:rename');
-    const { name } = parsed.data;
+    if (!parsed.success) return this.dropInvalid('user:profile');
+    const { name, effect } = parsed.data;
     if (hostRoomId) {
-      this.rooms.renameHost(hostRoomId, name);
+      this.rooms.updateHost(hostRoomId, name, effect);
       this.emitHost(hostRoomId);
       return;
     }
-    if (viewer && this.rooms.renameViewer(viewer.roomId, viewer.viewerId, name)) {
+    if (viewer && this.rooms.updateViewer(viewer.roomId, viewer.viewerId, name, effect)) {
       const hostSocketId = this.rooms.get(viewer.roomId)?.hostSocketId;
       if (hostSocketId) {
-        this.server.to(hostSocketId).emit('viewer:renamed', { viewerId: viewer.viewerId, name });
+        this.server
+          .to(hostSocketId)
+          .emit('viewer:updated', { viewerId: viewer.viewerId, name, effect });
       }
       this.emitViewerList(viewer.roomId);
     }
@@ -365,7 +375,11 @@ export class SignalingGateway
   private emitHost(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
-    const host = { name: room.hostName, online: room.hostSocketId !== null };
+    const host = {
+      name: room.hostName,
+      effect: room.hostEffect,
+      online: room.hostSocketId !== null,
+    };
     for (const socketId of this.rooms.viewerSocketIds(roomId)) {
       this.server.to(socketId).emit('room:host', host);
     }

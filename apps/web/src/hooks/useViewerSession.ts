@@ -3,6 +3,7 @@ import { type EndReason, type PublicViewer, ROOM_ID_REGEX, type RoomHost } from 
 import { SERVER_DROP_RETRY_MS } from '../config';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
 import { ViewerReceiver } from '../lib/webrtc/viewer-receiver';
+import type { Profile } from './useProfile';
 
 export type ViewerState =
   | 'connecting'
@@ -19,7 +20,7 @@ interface Session {
   receiver: ViewerReceiver;
 }
 
-export function useViewerSession(roomId: string, name: string) {
+export function useViewerSession(roomId: string, profile: Profile) {
   const validRoomId = ROOM_ID_REGEX.test(roomId);
   const [state, setStateValue] = useState<ViewerState>(validRoomId ? 'connecting' : 'not_found');
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -33,7 +34,7 @@ export function useViewerSession(roomId: string, name: string) {
   const [maxViewers, setMaxViewers] = useState<number | null>(null);
   const stateRef = useRef<ViewerState>(state);
   const sessionRef = useRef<Session | null>(null);
-  const nameRef = useRef(name);
+  const profileRef = useRef(profile);
   const joinedRef = useRef(false);
   const hostOnlineRef = useRef(true);
   // Kept only in memory: it lets this page take its seat back after a dropped connection.
@@ -123,7 +124,7 @@ export function useViewerSession(roomId: string, name: string) {
       const resume = resumeRef.current;
       const ack = await socket.emitWithAck('viewer:join', {
         roomId,
-        name: nameRef.current,
+        ...profileRef.current,
         resume: resume ? { ...resume, needsOffer: !receiver.connected } : undefined,
       });
       if (isFinal()) return;
@@ -140,10 +141,11 @@ export function useViewerSession(roomId: string, name: string) {
       setViewers(ack.viewers);
       setSelfId(ack.selfId);
       setMaxViewers(ack.maxViewers);
-      // A rename typed while the connection was down never reached the server.
+      // A profile change made while the connection was down never reached the server.
       const self = ack.viewers.find((viewer) => viewer.id === ack.selfId);
-      if (self && self.name !== nameRef.current) {
-        socket.emit('user:rename', { name: nameRef.current });
+      const mine = profileRef.current;
+      if (self && (self.name !== mine.name || self.effect !== mine.effect)) {
+        socket.emit('user:profile', mine);
       }
       if (ack.resumed && ack.live && receiver.connected) return;
       // Otherwise a new offer is on its way (or will be once the host shares).
@@ -167,10 +169,11 @@ export function useViewerSession(roomId: string, name: string) {
   }, [roomId, validRoomId, setState]);
 
   useEffect(() => {
-    if (nameRef.current === name) return;
-    nameRef.current = name;
-    if (joinedRef.current) sessionRef.current?.socket.emit('user:rename', { name });
-  }, [name]);
+    const current = profileRef.current;
+    if (current.name === profile.name && current.effect === profile.effect) return;
+    profileRef.current = profile;
+    if (joinedRef.current) sessionRef.current?.socket.emit('user:profile', profile);
+  }, [profile]);
 
   const retry = useCallback(() => {
     const session = sessionRef.current;

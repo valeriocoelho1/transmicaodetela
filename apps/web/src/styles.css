@@ -139,7 +139,9 @@ input {
 /* Declared on the element itself so --px and --pixel-line resolve per scope. */
 .pixel-box,
 .btn,
-.card {
+.card,
+.profile-editor,
+.profile-card {
   --pixel-outline:
     0 calc(var(--px) * -1) 0 0 var(--pixel-line), 0 var(--px) 0 0 var(--pixel-line),
     calc(var(--px) * -1) 0 0 0 var(--pixel-line), var(--px) 0 0 0 var(--pixel-line);
@@ -284,12 +286,6 @@ button.profile .icon {
   color: var(--muted);
 }
 
-.profile--editing {
-  padding-right: 0.3rem;
-  box-shadow: inset 0 0 0 2px var(--accent);
-  cursor: auto;
-}
-
 .profile__name {
   min-width: 0;
   overflow: hidden;
@@ -297,40 +293,263 @@ button.profile .icon {
   white-space: nowrap;
 }
 
-.profile__input {
-  width: 11rem;
+.profile-menu {
+  position: relative;
   min-width: 0;
-  padding: 0;
+}
+
+.profile-menu .profile[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+/* Profile editor: opens under the profile pill. */
+.profile-editor {
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: var(--space-4);
+  width: min(24rem, calc(100vw - 2rem));
+  padding: var(--space-5);
+  background: var(--surface);
+  box-shadow: var(--pixel-outline), var(--pixel-drop);
+  animation: pop-in 160ms ease-out both;
+}
+
+.profile-editor__preview {
+  display: grid;
+  place-items: center;
+  padding: var(--space-3) 0;
+}
+
+.profile-editor__field {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.profile-editor__input {
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
   border: 0;
-  background: transparent;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 2px var(--line);
+  color: var(--fg);
   font-weight: 600;
   outline: none;
 }
 
-.profile__input[aria-invalid='true'] {
-  color: var(--danger);
+.profile-editor__input:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.profile__action {
+.profile-editor__input[aria-invalid='true'] {
+  box-shadow: inset 0 0 0 2px var(--danger);
+}
+
+.profile-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.profile-editor__actions .btn {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+}
+
+.effect-picker {
   display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.effect-picker legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  color: var(--soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.effect-picker__options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.effect-picker__option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1) var(--space-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+.effect-picker__option:hover {
+  color: var(--fg);
+}
+
+.effect-picker__option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.effect-picker__option:has(input:checked) {
+  box-shadow: inset 0 0 0 2px var(--primary);
+  color: var(--fg);
+}
+
+.effect-picker__option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Mini profile shown on hover or focus. */
+.profile-hover {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.profile-hover[tabindex]:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.profile-card {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background: var(--surface);
+  box-shadow: var(--pixel-outline), var(--pixel-drop);
+  text-align: center;
+  pointer-events: none;
+  animation: pop-in 160ms ease-out both;
+}
+
+.profile-card .avatar-fx {
+  margin-bottom: var(--space-3);
+}
+
+.profile-card__name {
+  max-width: 100%;
+  color: var(--fg);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.profile-card__role {
+  color: var(--soft);
+  font-size: 0.875rem;
+}
+
+.profile-card__effect {
+  margin-top: var(--space-2);
+  padding: 0.125rem 0.625rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.room-bar__host.profile-hover {
+  display: inline;
+  cursor: default;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 4px;
+}
+
+/* Profile effects: the five presets a person can pick. */
+.avatar-fx {
+  position: relative;
+  display: inline-grid;
   flex: none;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: 0;
+}
+
+.avatar-fx .avatar {
+  position: relative;
+}
+
+.avatar-fx--bounce .avatar {
+  animation: fx-bounce 1.1s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+}
+
+.avatar-fx--wiggle .avatar {
+  transform-origin: 50% 85%;
+  animation: fx-wiggle 1.6s ease-in-out infinite;
+}
+
+.avatar-fx--pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
-  background: var(--surface-2);
-  cursor: pointer;
+  background: var(--avatar-color);
+  animation: fx-pulse 1.6s ease-out infinite;
 }
 
-.profile__action:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+.avatar-fx--rainbow::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: conic-gradient(#ff7a6e, #ffd23f, #7fe0a8, #6fd6e8, #8fa2ff, #e59bff, #ff7a6e);
+  animation: spin 2.4s linear infinite;
 }
 
-.profile__action[type='submit']:not(:disabled) {
-  background: var(--primary);
-  color: var(--on-primary);
+.avatar-fx--rainbow .avatar {
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.avatar-fx--sparkle::before,
+.avatar-fx--sparkle::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  background: var(--accent);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: twinkle 1.4s ease-in-out infinite;
+}
+
+.avatar-fx--sparkle::before {
+  top: -14%;
+  right: -14%;
+  width: 40%;
+  height: 40%;
+}
+
+.avatar-fx--sparkle::after {
+  bottom: -6%;
+  left: -12%;
+  width: 26%;
+  height: 26%;
+  animation-delay: 700ms;
 }
 
 .page-title {
@@ -886,6 +1105,12 @@ button.profile .icon {
   color: var(--on-primary);
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.viewer-list__person {
+  display: flex;
+  flex: 1;
+  gap: var(--space-3);
 }
 
 .viewer-list__name {
@@ -1670,6 +1895,67 @@ button.profile .icon {
 @keyframes blink {
   50% {
     opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@keyframes fx-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+
+  30% {
+    transform: translateY(-22%) scale(0.95, 1.05);
+  }
+
+  55% {
+    transform: translateY(0) scale(1.08, 0.92);
+  }
+
+  70% {
+    transform: translateY(-6%) scale(1, 1);
+  }
+}
+
+@keyframes fx-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  20% {
+    transform: rotate(-12deg);
+  }
+
+  40% {
+    transform: rotate(10deg);
+  }
+
+  60% {
+    transform: rotate(-6deg);
+  }
+
+  80% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes fx-pulse {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.7);
   }
 }
 

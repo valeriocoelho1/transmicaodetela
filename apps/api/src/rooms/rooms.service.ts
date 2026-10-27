@@ -1,6 +1,12 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { type EndReason, ROOM_ID_REGEX } from '@app/shared';
+import {
+  type EndReason,
+  type ProfileEffect,
+  type PublicViewer,
+  ROOM_ID_REGEX,
+  type RoomViewer,
+} from '@app/shared';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
 
 export interface Viewer {
@@ -8,6 +14,7 @@ export interface Viewer {
   socketId: string | null;
   publicId: string;
   name: string;
+  effect: ProfileEffect;
   resumeTokenHash: Buffer;
   disconnectedAt: number | null;
 }
@@ -20,12 +27,14 @@ export interface Room {
   hostSocketId: string | null;
   hostDisconnectedAt: number | null;
   hostName: string;
+  hostEffect: ProfileEffect;
   live: boolean;
   viewers: Map<string, Viewer>;
 }
 
 export const DEFAULT_HOST_NAME = 'Anfitrião';
 export const DEFAULT_VIEWER_NAME = 'Espectador';
+export const DEFAULT_EFFECT: ProfileEffect = 'pulse';
 
 export class RoomLimitReachedError extends Error {
   constructor() {
@@ -69,6 +78,7 @@ export class RoomsService {
       hostSocketId: null,
       hostDisconnectedAt: null,
       hostName: DEFAULT_HOST_NAME,
+      hostEffect: DEFAULT_EFFECT,
       live: false,
       viewers: new Map(),
     });
@@ -86,13 +96,19 @@ export class RoomsService {
     return timingSafeEqual(sha256(token), room.hostTokenHash);
   }
 
-  attachHost(roomId: string, socketId: string, name?: string): { previousSocketId: string | null } {
+  attachHost(
+    roomId: string,
+    socketId: string,
+    name?: string,
+    effect?: ProfileEffect,
+  ): { previousSocketId: string | null } {
     const room = this.get(roomId);
     if (!room) return { previousSocketId: null };
     const previous = room.hostSocketId;
     room.hostEverJoined = true;
     room.hostSocketId = socketId;
     if (name) room.hostName = name;
+    if (effect) room.hostEffect = effect;
     room.hostDisconnectedAt = null;
     return { previousSocketId: previous !== socketId ? previous : null };
   }
@@ -115,7 +131,12 @@ export class RoomsService {
     return true;
   }
 
-  addViewer(roomId: string, socketId: string, name = DEFAULT_VIEWER_NAME): AddViewerResult {
+  addViewer(
+    roomId: string,
+    socketId: string,
+    name = DEFAULT_VIEWER_NAME,
+    effect: ProfileEffect = DEFAULT_EFFECT,
+  ): AddViewerResult {
     const room = this.get(roomId);
     if (!room) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (room.viewers.size >= this.config.maxViewersPerRoom)
@@ -126,6 +147,7 @@ export class RoomsService {
       socketId,
       publicId: randomBytes(6).toString('base64url'),
       name,
+      effect,
       resumeTokenHash: sha256(resumeToken),
       disconnectedAt: null,
     });
@@ -166,29 +188,34 @@ export class RoomsService {
     return room.viewers.delete(viewerId);
   }
 
-  renameHost(roomId: string, name: string): void {
+  updateHost(roomId: string, name: string, effect: ProfileEffect): void {
     const room = this.get(roomId);
-    if (room) room.hostName = name;
+    if (!room) return;
+    room.hostName = name;
+    room.hostEffect = effect;
   }
 
-  renameViewer(roomId: string, viewerId: string, name: string): boolean {
+  updateViewer(roomId: string, viewerId: string, name: string, effect: ProfileEffect): boolean {
     const viewer = this.get(roomId)?.viewers.get(viewerId);
     if (!viewer) return false;
     viewer.name = name;
+    viewer.effect = effect;
     return true;
   }
 
-  viewerList(roomId: string): { viewerId: string; name: string }[] {
-    return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name }]) => ({
+  viewerList(roomId: string): RoomViewer[] {
+    return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name, effect }]) => ({
       viewerId,
       name,
+      effect,
     }));
   }
 
-  publicViewerList(roomId: string): { id: string; name: string }[] {
-    return [...(this.get(roomId)?.viewers.values() ?? [])].map(({ publicId, name }) => ({
+  publicViewerList(roomId: string): PublicViewer[] {
+    return [...(this.get(roomId)?.viewers.values() ?? [])].map(({ publicId, name, effect }) => ({
       id: publicId,
       name,
+      effect,
     }));
   }
 

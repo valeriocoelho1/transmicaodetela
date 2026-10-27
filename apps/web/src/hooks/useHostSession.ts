@@ -5,6 +5,7 @@ import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
 import { clearHostToken, getHostToken } from '../lib/host-token';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
 import { HostBroadcaster } from '../lib/webrtc/host-broadcaster';
+import type { Profile } from './useProfile';
 
 export type HostState =
   | 'connecting'
@@ -23,7 +24,7 @@ interface Session {
   broadcaster: HostBroadcaster;
 }
 
-export function useHostSession(roomId: string, name: string) {
+export function useHostSession(roomId: string, profile: Profile) {
   const [state, setStateValue] = useState<HostState>('connecting');
   const [viewers, setViewers] = useState<RoomViewer[]>([]);
   const [maxViewers, setMaxViewers] = useState<number | null>(null);
@@ -37,7 +38,7 @@ export function useHostSession(roomId: string, name: string) {
   const stateRef = useRef<HostState>('connecting');
   const sessionRef = useRef<Session | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const nameRef = useRef(name);
+  const profileRef = useRef(profile);
   const joinedRef = useRef(false);
   const attemptRef = useRef(0);
 
@@ -85,7 +86,7 @@ export function useHostSession(roomId: string, name: string) {
       broadcaster.addViewer(viewer.viewerId);
       setViewers((list) => [...list.filter((v) => v.viewerId !== viewer.viewerId), viewer]);
     });
-    socket.on('viewer:renamed', (viewer) => {
+    socket.on('viewer:updated', (viewer) => {
       setViewers((list) => list.map((v) => (v.viewerId === viewer.viewerId ? viewer : v)));
     });
     socket.on('viewer:left', ({ viewerId }) => {
@@ -120,7 +121,7 @@ export function useHostSession(roomId: string, name: string) {
       const ack = await socket.emitWithAck('host:join', {
         roomId,
         hostToken,
-        name: nameRef.current,
+        ...profileRef.current,
       });
       if (cancelled || stateRef.current === 'ended') return;
       if (!ack.ok) {
@@ -164,10 +165,11 @@ export function useHostSession(roomId: string, name: string) {
   }, [roomId, finish, setState]);
 
   useEffect(() => {
-    if (nameRef.current === name) return;
-    nameRef.current = name;
-    if (joinedRef.current) sessionRef.current?.socket.emit('user:rename', { name });
-  }, [name]);
+    const current = profileRef.current;
+    if (current.name === profile.name && current.effect === profile.effect) return;
+    profileRef.current = profile;
+    if (joinedRef.current) sessionRef.current?.socket.emit('user:profile', profile);
+  }, [profile]);
 
   const stopSharing = useCallback(() => {
     if (!streamRef.current) return;

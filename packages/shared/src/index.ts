@@ -27,6 +27,11 @@ const roomId = z.string().regex(ROOM_ID_REGEX);
 const viewerId = z.uuid();
 const hostToken = z.string().min(20).max(128);
 const resumeToken = z.string().min(20).max(128);
+
+// The animation each person picks for their mini profile; only these presets exist.
+export const PROFILE_EFFECTS = ['sparkle', 'bounce', 'rainbow', 'pulse', 'wiggle'] as const;
+export const profileEffect = z.enum(PROFILE_EFFECTS);
+export type ProfileEffect = z.infer<typeof profileEffect>;
 export const displayName = z
   .string()
   .trim()
@@ -47,15 +52,21 @@ export const iceCandidate = z.object({
   usernameFragment: z.string().nullable().optional(),
 });
 
-export const hostJoinPayload = z.object({ roomId, hostToken, name: displayName.optional() });
+export const hostJoinPayload = z.object({
+  roomId,
+  hostToken,
+  name: displayName.optional(),
+  effect: profileEffect.optional(),
+});
 export const hostLivePayload = z.object({ live: z.boolean() });
 export const viewerJoinPayload = z.object({
   roomId,
   name: displayName.optional(),
+  effect: profileEffect.optional(),
   // Sent after a dropped connection to keep the same seat and video connection.
   resume: z.object({ viewerId, token: resumeToken, needsOffer: z.boolean() }).optional(),
 });
-export const renamePayload = z.object({ name: displayName });
+export const profilePayload = z.object({ name: displayName, effect: profileEffect });
 export const offerPayload = z.object({ viewerId, sdp: offerSdp });
 export const answerPayload = z.object({ sdp: answerSdp });
 export const iceFromHostPayload = z.object({ viewerId, candidate: iceCandidate });
@@ -67,7 +78,7 @@ export type IceCandidate = z.infer<typeof iceCandidate>;
 export type HostJoinPayload = z.infer<typeof hostJoinPayload>;
 export type HostLivePayload = z.infer<typeof hostLivePayload>;
 export type ViewerJoinPayload = z.infer<typeof viewerJoinPayload>;
-export type RenamePayload = z.infer<typeof renamePayload>;
+export type ProfilePayload = z.infer<typeof profilePayload>;
 export type OfferPayload = z.infer<typeof offerPayload>;
 export type AnswerPayload = z.infer<typeof answerPayload>;
 export type IceFromHostPayload = z.infer<typeof iceFromHostPayload>;
@@ -82,12 +93,14 @@ export interface IceServer {
 export interface RoomViewer {
   viewerId: string;
   name: string;
+  effect: ProfileEffect;
 }
 
 // What viewers see of each other: a display id that is useless for signaling, never the viewerId.
 export interface PublicViewer {
   id: string;
   name: string;
+  effect: ProfileEffect;
 }
 
 export type HostJoinAck = Ack<{
@@ -97,6 +110,7 @@ export type HostJoinAck = Ack<{
 }>;
 export interface RoomHost {
   name: string;
+  effect: ProfileEffect;
   online: boolean;
 }
 
@@ -117,7 +131,7 @@ export interface ClientToServerEvents {
   'host:live': (payload: HostLivePayload) => void;
   'host:end': () => void;
   'viewer:join': (payload: ViewerJoinPayload, ack: (res: ViewerJoinAck) => void) => void;
-  'user:rename': (payload: RenamePayload) => void;
+  'user:profile': (payload: ProfilePayload) => void;
   'signal:offer': (payload: OfferPayload) => void;
   'signal:answer': (payload: AnswerPayload) => void;
   'signal:ice': (payload: IceFromHostPayload | IceFromViewerPayload) => void;
@@ -125,7 +139,7 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   'viewer:joined': (payload: RoomViewer) => void;
-  'viewer:renamed': (payload: RoomViewer) => void;
+  'viewer:updated': (payload: RoomViewer) => void;
   'viewer:left': (payload: { viewerId: string }) => void;
   'room:host': (payload: RoomHost) => void;
   'room:viewers': (payload: { viewers: PublicViewer[] }) => void;

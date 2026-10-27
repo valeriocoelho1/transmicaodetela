@@ -3,6 +3,7 @@ import { formatViewerCount } from '../lib/format';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Icon } from './Icon';
+import { ProfileHover } from './ProfileHover';
 
 interface ViewerListProps {
   viewers: PublicViewer[];
@@ -38,9 +39,16 @@ export function ViewerList({ viewers, maxViewers, selfId, emptyText, hint }: Vie
                   : 'viewer-list__item'
               }
             >
-              <Avatar name={viewer.name} size={34} />
-              <span className="viewer-list__name">{viewer.name}</span>
-              {viewer.id === selfId && <span className="viewer-list__self">você</span>}
+              <ProfileHover
+                profile={viewer}
+                role={viewer.id === selfId ? 'Você' : 'Espectador'}
+                className="viewer-list__person"
+                focusable
+              >
+                <Avatar name={viewer.name} size={34} />
+                <span className="viewer-list__name">{viewer.name}</span>
+                {viewer.id === selfId && <span className="viewer-list__self">você</span>}
+              </ProfileHover>
             </li>
           ))}
         </ul>

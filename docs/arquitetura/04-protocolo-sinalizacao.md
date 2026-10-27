@@ -12,11 +12,11 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 
 | Evento | Quem envia | Payload | Resposta (`ack`) |
 | --- | --- | --- | --- |
-| `host:join` | anfitrião | `{ roomId, hostToken, name? }` | `{ ok: true, iceServers, viewers: { viewerId, name }[], maxViewers } ` ou `{ ok: false, error }` |
+| `host:join` | anfitrião | `{ roomId, hostToken, name?, effect? }` | `{ ok: true, iceServers, viewers: { viewerId, name, effect }[], maxViewers } ` ou `{ ok: false, error }` |
 | `host:live` | anfitrião | `{ live: boolean }` | nenhuma |
 | `host:end` | anfitrião | nenhum | nenhuma |
-| `viewer:join` | espectador | `{ roomId, name?, resume?: { viewerId, token, needsOffer } }` | `{ ok: true, viewerId, resumeToken, resumed, iceServers, live, host: { name, online }, selfId, viewers: { id, name }[], maxViewers } ` ou `{ ok: false, error }` |
-| `user:rename` | ambos | `{ name }` | nenhuma |
+| `viewer:join` | espectador | `{ roomId, name?, effect?, resume?: { viewerId, token, needsOffer } }` | `{ ok: true, viewerId, resumeToken, resumed, iceServers, live, host: { name, effect, online }, selfId, viewers: { id, name, effect }[], maxViewers } ` ou `{ ok: false, error }` |
+| `user:profile` | ambos | `{ name, effect }` | nenhuma |
 | `signal:offer` | anfitrião | `{ viewerId, sdp }` | nenhuma |
 | `signal:answer` | espectador | `{ sdp }` | nenhuma |
 | `signal:ice` | ambos | anfitrião: `{ viewerId, candidate }`. Espectador: `{ candidate }` | nenhuma |
@@ -27,15 +27,15 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 
 | Evento | Para quem | Payload | Quando |
 | --- | --- | --- | --- |
-| `viewer:joined` | anfitrião | `{ viewerId, name }` | Um espectador entrou |
-| `viewer:renamed` | anfitrião | `{ viewerId, name }` | Um espectador trocou de nome |
+| `viewer:joined` | anfitrião | `{ viewerId, name, effect }` | Um espectador entrou |
+| `viewer:updated` | anfitrião | `{ viewerId, name, effect }` | Um espectador mudou o perfil |
 | `viewer:left` | anfitrião | `{ viewerId }` | Um espectador saiu |
 | `signal:answer` | anfitrião | `{ viewerId, sdp }` | Repassa a resposta do espectador |
 | `signal:ice` | anfitrião | `{ viewerId, candidate }` | Repassa candidato do espectador |
 | `room:host-replaced` | anfitrião antigo | nenhum | Outro socket assumiu como anfitrião. O servidor desconecta este socket em seguida |
 | `room:status` | espectadores | `{ live: boolean }` | Anfitrião começou ou parou de transmitir, ou ficou offline |
-| `room:host` | espectadores | `{ name, online }` | Anfitrião entrou, caiu, saiu ou trocou de nome |
-| `room:viewers` | espectadores | `{ viewers: { id, name }[] }` | Um espectador entrou, saiu ou trocou de nome (quem acabou de entrar recebe a lista no `ack`) |
+| `room:host` | espectadores | `{ name, effect, online }` | Anfitrião entrou, caiu, saiu ou mudou o perfil |
+| `room:viewers` | espectadores | `{ viewers: { id, name, effect }[] }` | Um espectador entrou, saiu ou mudou o perfil (quem acabou de entrar recebe a lista no `ack`) |
 | `signal:offer` | espectador | `{ sdp }` | Repassa a oferta do anfitrião |
 | `signal:ice` | espectador | `{ candidate }` | Repassa candidato do anfitrião |
 | `room:ended` | espectadores | `{ reason }`, com `reason` igual a `HOST_ENDED`, `HOST_TIMEOUT` ou `EXPIRED` | A sala foi encerrada. O servidor desconecta os espectadores em seguida |
@@ -89,7 +89,7 @@ Também exporte em `@app/shared`: o tipo `Ack<T>` (`{ ok: true } & T | { ok: fal
 9. **Anfitrião desconecta.** Os espectadores recebem `room:host { online: false }` e a sala é mantida por `ROOM_HOST_GRACE_MS`. Se ele saiu de propósito (o cliente fechou o socket, motivo `client namespace disconnect`), também `live = false` e `room:status { live: false }`. Se só perdeu a conexão, a sala continua `live`: o vídeo vai direto entre os navegadores e pode seguir. Se ele voltar com o token, a sala segue. Se não, a varredura encerra com `HOST_TIMEOUT`.
 10. **Espectador desconecta.** Se saiu de propósito, é removido na hora e o anfitrião recebe `viewer:left`. Se perdeu a conexão, a vaga fica guardada por `VIEWER_GRACE_MS` (padrão 20 s), sem avisar o anfitrião, e só então é removida com `viewer:left`.
 11. **Retomada.** O `ack` do `viewer:join` traz um `resumeToken` aleatório (32 bytes), guardado no servidor só como `sha256`. Ao reconectar, o espectador manda `resume { viewerId, token, needsOffer }`. Com o token certo, recebe a mesma vaga (mesmo com a sala cheia), um token novo e `resumed: true`; um socket antigo do mesmo espectador é desconectado. Se `needsOffer` for `true` (o vídeo dele caiu), o anfitrião recebe `viewer:joined` de novo e manda outra oferta. Token errado ou vaga expirada viram um `join` comum. O token nunca vai para log nem para a URL.
-12. **Nomes.** `name` é opcional no `join` (padrão `Anfitrião` ou `Espectador`), passa por `trim`, tem de 1 a 32 caracteres e não aceita caracteres de controle. `user:rename` do anfitrião vai para os espectadores como `room:host`; o do espectador vai para o anfitrião como `viewer:renamed`. Nomes não aparecem nos logs. Os espectadores se veem pelo `id` público (`selfId` é o seu), gerado à parte e inútil para sinalização; o `viewerId` só vai para o anfitrião.
+12. **Perfis.** `name` é opcional no `join` (padrão `Anfitrião` ou `Espectador`), passa por `trim`, tem de 1 a 32 caracteres e não aceita caracteres de controle. `effect` é a animação do mini perfil e só aceita um dos cinco presets de `PROFILE_EFFECTS` (`sparkle`, `bounce`, `rainbow`, `pulse`, `wiggle`; padrão `pulse`). `user:profile` do anfitrião vai para os espectadores como `room:host`; o do espectador vai para o anfitrião como `viewer:updated` e para os outros espectadores em `room:viewers`. Nomes não aparecem nos logs. Os espectadores se veem pelo `id` público (`selfId` é o seu), gerado à parte e inútil para sinalização; o `viewerId` só vai para o anfitrião.
 13. **Limite de taxa.** Mais de `SOCKET_RATE_LIMIT_EVENTS` eventos em `SOCKET_RATE_LIMIT_WINDOW_MS` desconecta o socket.
 
 ## Regras do cliente

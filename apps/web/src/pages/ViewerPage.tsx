@@ -5,9 +5,10 @@ import { Layout } from '../components/Layout';
 import { RemoteVideo } from '../components/RemoteVideo';
 import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
+import { ProfileHover } from '../components/ProfileHover';
 import { StatusPill } from '../components/StatusPill';
 import { ViewerList } from '../components/ViewerList';
-import { useDisplayName } from '../hooks/useDisplayName';
+import { useProfile } from '../hooks/useProfile';
 import { useViewerSession, type ViewerState } from '../hooks/useViewerSession';
 import {
   CONNECTING_MESSAGE,
@@ -31,8 +32,8 @@ const stateIcons: Record<Exclude<ViewerState, 'watching'>, IconName> = {
 
 export function ViewerPage() {
   const { roomId = '' } = useParams();
-  const [name, rename] = useDisplayName();
-  const session = useViewerSession(roomId, name);
+  const [profile, setProfile] = useProfile();
+  const session = useViewerSession(roomId, profile);
   const { state, stream, endedReason, host } = session;
   const watching = state === 'watching' && stream !== null;
   const hostAway = host !== null && !host.online;
@@ -54,10 +55,17 @@ export function ViewerPage() {
 
   return (
     <Layout fill>
-      <RoomBar name={name} onRename={rename}>
+      <RoomBar profile={profile} role="Você" onProfileChange={setProfile}>
         <h1 className="room-bar__title">
           Transmissão
-          {host?.name && <span className="room-bar__host"> de {host.name}</span>}
+          {host?.name && (
+            <>
+              {' de '}
+              <ProfileHover profile={host} role="Anfitrião" className="room-bar__host" focusable>
+                {host.name}
+              </ProfileHover>
+            </>
+          )}
         </h1>
         {watching &&
           (session.signalingLost ? (

@@ -10,7 +10,7 @@ import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
 import { ViewerList } from '../components/ViewerList';
-import { useDisplayName } from '../hooks/useDisplayName';
+import { useProfile } from '../hooks/useProfile';
 import { useHostSession } from '../hooks/useHostSession';
 import {
   CAPTURE_STUCK_MESSAGE,
@@ -40,8 +40,8 @@ function LocalPreview({ stream }: { stream: MediaStream }) {
 
 export function HostPage() {
   const { roomId = '' } = useParams();
-  const [name, rename] = useDisplayName();
-  const session = useHostSession(roomId, name);
+  const [profile, setProfile] = useProfile();
+  const session = useHostSession(roomId, profile);
   const link = `${window.location.origin}/r/${roomId}`;
   const supported = isDisplayCaptureSupported();
   const { state } = session;
@@ -57,7 +57,7 @@ export function HostPage() {
             : END_REASON_MESSAGES[session.endedReason ?? 'HOST_ENDED'];
     return (
       <Layout width="narrow">
-        <RoomBar name={name} onRename={rename} />
+        <RoomBar profile={profile} role="Você · anfitrião" onProfileChange={setProfile} />
         <h1 className="sr-only">Sua sala</h1>
         <div className="card">
           <StateMessage
@@ -79,7 +79,7 @@ export function HostPage() {
 
   return (
     <Layout fill>
-      <RoomBar name={name} onRename={rename}>
+      <RoomBar profile={profile} role="Você · anfitrião" onProfileChange={setProfile}>
         {state === 'live' && <StatusPill tone="live" label="Ao vivo" />}
         {state === 'connecting' && <StatusPill tone="neutral" label={CONNECTING_MESSAGE} />}
         {state === 'reconnecting' && <StatusPill tone="warning" label={RECONNECTING_MESSAGE} />}
@@ -156,7 +156,10 @@ export function HostPage() {
             <LinkField link={link} />
           </Card>
           <ViewerList
-            viewers={session.viewers.map(({ viewerId, name }) => ({ id: viewerId, name }))}
+            viewers={session.viewers.map(({ viewerId, ...profile }) => ({
+              id: viewerId,
+              ...profile,
+            }))}
             maxViewers={session.maxViewers}
             emptyText="Ninguém assistindo ainda. Envie o link da sala."
             hint={
