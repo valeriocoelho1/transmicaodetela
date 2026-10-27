@@ -49,7 +49,7 @@ export function ViewerPage() {
   const showList = !isFinal && session.selfId !== null;
 
   return (
-    <Layout>
+    <Layout fill>
       <RoomBar name={name} onRename={rename}>
         <h1 className="room-bar__title">
           Transmissão
@@ -57,31 +57,37 @@ export function ViewerPage() {
         </h1>
         {watching && <StatusPill tone="live" label="Ao vivo" />}
       </RoomBar>
-      <div className={showList ? 'room-grid' : undefined}>
+      <div className={showList ? 'room-grid' : 'room-grid room-grid--single'}>
         {watching ? (
           <RemoteVideo stream={stream} hasAudio={session.hasAudio} />
         ) : (
           <div className="stage">
-            <div className="tv pixel-box">
-              <div className="stage__frame">
-                <StateMessage
-                  icon={stateIcons[current]}
-                  tone={isError ? 'error' : 'neutral'}
-                  busy={busy}
-                  message={message}
-                >
-                  {current === 'failed' && (
-                    <Button variant="primary" onClick={session.retry}>
-                      Tentar novamente
-                    </Button>
-                  )}
-                  {isFinal && (
-                    <Link className="btn btn--secondary" to="/">
-                      <Icon name="arrowLeft" />
-                      <span>Voltar ao início</span>
-                    </Link>
-                  )}
-                </StateMessage>
+            <div className="stage__screen">
+              <div className="tv pixel-box">
+                <div className="stage__frame">
+                  <StateMessage
+                    icon={stateIcons[current]}
+                    tone={isError ? 'error' : 'neutral'}
+                    busy={busy}
+                    message={message}
+                  >
+                    {current === 'failed' && (
+                      <Button variant="primary" onClick={session.retry}>
+                        Tentar novamente
+                      </Button>
+                    )}
+                    {isFinal && (
+                      <Link className="btn btn--secondary" to="/">
+                        <Icon name="arrowLeft" />
+                        <span>Voltar ao início</span>
+                      </Link>
+                    )}
+                  </StateMessage>
+                </div>
+                <div className="tv__knobs" aria-hidden="true">
+                  <span />
+                  <span />
+                </div>
               </div>
             </div>
           </div>

@@ -78,7 +78,7 @@ export function HostPage() {
   const inRoom = state === 'ready' || state === 'starting' || state === 'live';
 
   return (
-    <Layout>
+    <Layout fill>
       <RoomBar name={name} onRename={rename}>
         {state === 'live' && <StatusPill tone="live" label="Ao vivo" />}
         {state === 'connecting' && <StatusPill tone="neutral" label={CONNECTING_MESSAGE} />}
@@ -88,20 +88,22 @@ export function HostPage() {
 
       <div className="room-grid">
         <div className="stage">
-          <div className="tv pixel-box">
-            <div className="stage__frame">
-              {session.previewStream ? (
-                <LocalPreview stream={session.previewStream} />
-              ) : (
-                <div className="stage__placeholder">
-                  <Icon name="screen" size={40} />
-                  <p>A prévia da sua tela aparece aqui.</p>
-                </div>
-              )}
-            </div>
-            <div className="tv__knobs" aria-hidden="true">
-              <span />
-              <span />
+          <div className="stage__screen">
+            <div className="tv pixel-box">
+              <div className="stage__frame">
+                {session.previewStream ? (
+                  <LocalPreview stream={session.previewStream} />
+                ) : (
+                  <div className="stage__placeholder">
+                    <Icon name="screen" size={40} />
+                    <p>A prévia da sua tela aparece aqui.</p>
+                  </div>
+                )}
+              </div>
+              <div className="tv__knobs" aria-hidden="true">
+                <span />
+                <span />
+              </div>
             </div>
           </div>
           <div className="stage__bar">
@@ -141,23 +143,15 @@ export function HostPage() {
               Encerrar sala
             </Button>
           </div>
-          <div className="stack">
-            {!supported && <Callout tone="error">{UNSUPPORTED_BROWSER_MESSAGE}</Callout>}
-            {session.error && (
-              <div aria-live="polite">
-                <Callout tone="error">{session.error}</Callout>
-              </div>
-            )}
-            {session.captureSlow && (
-              <div aria-live="polite">
-                <Callout tone="info">{CAPTURE_STUCK_MESSAGE}</Callout>
-              </div>
-            )}
-            {session.audioMissing && <Callout tone="info">{NO_AUDIO_SHARED_MESSAGE}</Callout>}
-          </div>
         </div>
 
         <aside className="room-side">
+          <div className="stack" aria-live="polite">
+            {!supported && <Callout tone="error">{UNSUPPORTED_BROWSER_MESSAGE}</Callout>}
+            {session.error && <Callout tone="error">{session.error}</Callout>}
+            {session.captureSlow && <Callout tone="info">{CAPTURE_STUCK_MESSAGE}</Callout>}
+            {session.audioMissing && <Callout tone="info">{NO_AUDIO_SHARED_MESSAGE}</Callout>}
+          </div>
           <Card title="Link da sala">
             <LinkField link={link} />
           </Card>

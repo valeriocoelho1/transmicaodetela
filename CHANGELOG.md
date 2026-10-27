@@ -16,6 +16,9 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - O espectador também vê a lista de espectadores, com o próprio nome marcado como "você".
 - Vídeo maior: sala mais larga, sem o título "Sua sala", com o status na barra do topo.
 - Botões principais da sala no vermelho da landing, no lugar do amarelo.
+- Controles do vídeo (som e tela cheia) dentro da imagem, que somem quando o mouse fica parado, como num player de vídeo.
+- A sala ocupa exatamente a janela, sem rolagem: o vídeo se ajusta ao espaço e a coluna lateral rola por dentro.
+- O anfitrião não fica mais preso em "Reconectando…" quando a sala deixou de existir, e os dois lados voltam a conectar sozinhos depois que o servidor os desconecta por limite.
 
 ### Transmissão
 

@@ -520,21 +520,40 @@ button.profile .icon {
 /* ---------- Stage (TV around the video) ---------- */
 
 .stage {
-  /* The 16:9 frame never gets taller than the window minus what sits above it (page padding,
-     head, TV border) and below it (knobs, control bar). The page's bottom padding may scroll. */
-  --stage-reserved: 17rem;
+  --stage-bar: 0px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+}
+
+.stage:has(> .stage__bar) {
+  --stage-bar: calc(3.25rem + 2 * var(--px) + var(--space-4));
+}
+
+/* The TV takes the largest 16:9 size that fits: the screen box is as tall as that TV, so the
+   control bar sits right under it, and it can still shrink if the bar wraps to two rows. The TV
+   chrome is the side padding (2rem), top padding plus knobs (3.5rem) and outline plus shadow
+   (14px). */
+.stage__screen {
   display: grid;
-  gap: var(--space-6);
-  align-content: start;
-  width: 100%;
-  max-width: max(
-    20rem,
-    calc((100svh - var(--stage-reserved)) * 16 / 9 + 2 * var(--space-4) + 2 * var(--px) + 8px)
+  flex: 0 1 auto;
+  place-items: center;
+  height: calc(
+    min(100cqw - 2rem - 14px, (100cqh - var(--stage-bar) - 3.5rem - 14px) * 16 / 9) * 9 / 16 +
+      3.5rem + 14px
   );
-  margin-inline: auto;
+  min-height: 0;
+  container-type: size;
 }
 
 .tv {
+  --frame-w: min(100cqw - 2rem - 14px, (100cqh - 3.5rem - 14px) * 16 / 9);
+
+  width: calc(var(--frame-w) + 2rem);
   margin: var(--px) calc(var(--px) + 8px) calc(var(--px) + 8px) var(--px);
   padding: var(--space-4) var(--space-4) 0;
   background: var(--surface);
@@ -583,31 +602,83 @@ button.profile .icon {
   aspect-ratio: auto;
 }
 
-.stage__overlay {
+/* Video controls drawn over the picture; they fade out while nobody moves the mouse. The
+   z-index keeps them above the video, which browsers may paint on its own layer. */
+.player__controls {
   position: absolute;
-  top: max(var(--space-4), env(safe-area-inset-top));
-  right: max(var(--space-4), env(safe-area-inset-right));
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
+  align-items: center;
   gap: var(--space-3);
+  padding: var(--space-6) max(var(--space-3), env(safe-area-inset-right))
+    max(var(--space-3), env(safe-area-inset-bottom)) max(var(--space-3), env(safe-area-inset-left));
+  background: linear-gradient(to top, rgb(0 0 0 / 70%), transparent);
+  transition: opacity 220ms ease;
 }
 
-.stage__overlay-btn {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(0 0 0 / 55%);
-  color: #ffffff;
-  cursor: pointer;
-  opacity: 0.75;
-  transition: opacity 160ms ease;
+.player--idle {
+  cursor: none;
 }
 
-.stage__overlay-btn:hover,
-.stage__overlay-btn:focus-visible {
+.player--idle .player__controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.player:focus-within .player__controls {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.player__controls > :last-child {
+  margin-left: auto;
+}
+
+.player__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 45%);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.player__btn:hover {
+  background: rgb(0 0 0 / 70%);
+}
+
+.player__btn--label {
+  padding-right: var(--space-4);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.player__btn--label:hover {
+  background: var(--primary);
+  filter: brightness(1.1);
+}
+
+.player__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(255 255 255 / 85%);
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stage__placeholder {
@@ -621,16 +692,10 @@ button.profile .icon {
 
 .stage__bar {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
-}
-
-.stage__hint {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--muted);
+  gap: var(--space-3) var(--space-4);
 }
 
 /* ---------- State message ---------- */
@@ -684,15 +749,48 @@ button.profile .icon {
 
 /* ---------- Room grid (stage + side panel) ---------- */
 
-.room-grid {
-  display: grid;
-  gap: var(--space-6);
-  align-items: start;
+.app--room {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
+.app--room .container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: var(--space-4);
+}
+
+.app--room .room-bar {
+  flex: none;
+}
+
+.room-grid {
+  display: grid;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-5);
+  min-height: 0;
+}
+
+.room-grid--single {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* The side panel scrolls inside itself so the page never does. */
 .room-side {
   display: grid;
+  align-content: start;
   gap: var(--space-5);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.room-side > .stack:empty {
+  display: none;
 }
 
 .link-field {
@@ -1444,6 +1542,27 @@ button.profile .icon {
 
   .room-grid {
     grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .room-grid--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* On phones the stage sits above the side panel, so its height comes from the width. */
+@media (max-width: 899px) {
+  .room-grid:not(.room-grid--single) .stage {
+    container-type: normal;
+  }
+
+  .room-grid:not(.room-grid--single) .stage__screen {
+    height: auto;
+    container-type: inline-size;
+  }
+
+  .room-grid:not(.room-grid--single) .tv {
+    --frame-w: min(100cqw - 2rem - 14px, (55dvh - 3.5rem) * 16 / 9);
   }
 }
 
@@ -1612,10 +1731,6 @@ button.profile .icon {
 @media (max-height: 800px) {
   .page-head {
     margin-bottom: var(--space-5);
-  }
-
-  .stage {
-    --stage-reserved: 15.5rem;
   }
 }
 

@@ -41,12 +41,14 @@ export function LandingLayout({ children }: { children: ReactNode }) {
 
 interface LayoutProps {
   width?: 'narrow' | 'wide';
+  // Room pages fill the window exactly: the stage shrinks to fit and the page never scrolls.
+  fill?: boolean;
   children: ReactNode;
 }
 
-export function Layout({ width = 'wide', children }: LayoutProps) {
+export function Layout({ width = 'wide', fill = false, children }: LayoutProps) {
   return (
-    <div className="app">
+    <div className={fill ? 'app app--room' : 'app'}>
       <main className={`container container--${width}`}>{children}</main>
     </div>
   );

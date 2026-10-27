@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button } from './Button';
+import { type PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
 interface RemoteVideoProps {
@@ -11,6 +10,8 @@ interface RemoteVideoProps {
 type IosVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
 // ScreenOrientation.lock is missing from the TypeScript DOM lib.
 type LockableOrientation = ScreenOrientation & { lock?: (orientation: string) => Promise<void> };
+
+const CONTROLS_IDLE_MS = 2_500;
 
 const supportsNativeVideoFullscreen =
   typeof HTMLVideoElement !== 'undefined' && 'webkitEnterFullscreen' in HTMLVideoElement.prototype;
@@ -27,8 +28,21 @@ function lockToVideoOrientation(video: HTMLVideoElement): void {
 export function RemoteVideo({ stream, hasAudio }: RemoteVideoProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [muted, setMuted] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
+  const [controlsShown, setControlsShown] = useState(true);
+
+  const showControls = useCallback(() => {
+    setControlsShown(true);
+    clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setControlsShown(false), CONTROLS_IDLE_MS);
+  }, []);
+
+  useEffect(() => {
+    showControls();
+    return () => clearTimeout(idleTimer.current);
+  }, [showControls]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -73,7 +87,11 @@ export function RemoteVideo({ stream, hasAudio }: RemoteVideoProps) {
     }
   }
 
-  function enterFullscreen() {
+  function toggleFullscreen() {
+    if (fullscreen) {
+      document.exitFullscreen().catch(() => undefined);
+      return;
+    }
     const frame = frameRef.current;
     const video = videoRef.current as IosVideo | null;
     if (!frame || !video) return;
@@ -85,72 +103,77 @@ export function RemoteVideo({ stream, hasAudio }: RemoteVideoProps) {
     }
   }
 
-  function exitFullscreen() {
-    document.exitFullscreen().catch(() => undefined);
+  function onVideoPointerDown(event: PointerEvent) {
+    // On touch screens a tap toggles the controls, like a video player app.
+    if (event.pointerType !== 'touch') return;
+    if (controlsShown) {
+      clearTimeout(idleTimer.current);
+      setControlsShown(false);
+    } else {
+      showControls();
+    }
   }
 
   const canFullscreen = document.fullscreenEnabled || supportsNativeVideoFullscreen;
+  // While the sound is off, keep the button in sight so viewers know they can turn it on.
+  const visible = controlsShown || (hasAudio && muted);
 
   return (
     <div className="stage">
-      <div className="tv pixel-box">
-        <div className="stage__frame" ref={frameRef}>
-          <video
-            ref={videoRef}
-            data-testid="remote-video"
-            autoPlay
-            playsInline
-            muted={muted}
-            onDoubleClick={fullscreen ? exitFullscreen : enterFullscreen}
-          />
-          {fullscreen && (
-            <div className="stage__overlay">
-              {hasAudio && (
+      <div className="stage__screen">
+        <div className="tv pixel-box">
+          <div
+            className={visible ? 'stage__frame player' : 'stage__frame player player--idle'}
+            ref={frameRef}
+            onPointerMove={(event) => event.pointerType !== 'touch' && showControls()}
+            onPointerLeave={() => setControlsShown(false)}
+            onFocus={showControls}
+          >
+            <video
+              ref={videoRef}
+              data-testid="remote-video"
+              autoPlay
+              playsInline
+              muted={muted}
+              onPointerDown={onVideoPointerDown}
+              onDoubleClick={toggleFullscreen}
+            />
+            <div className="player__controls">
+              {hasAudio ? (
                 <button
                   type="button"
-                  className="stage__overlay-btn"
+                  className={muted ? 'player__btn player__btn--label' : 'player__btn'}
                   onClick={toggleSound}
                   aria-label={muted ? 'Ativar som' : 'Desativar som'}
+                  title={muted ? 'Ativar som' : 'Desativar som'}
                 >
                   <Icon name={muted ? 'mute' : 'volume'} />
+                  {muted && <span>Ativar som</span>}
+                </button>
+              ) : (
+                <p className="player__hint">
+                  <Icon name="mute" size={18} />
+                  Esta transmissão está sem áudio.
+                </p>
+              )}
+              {canFullscreen && (
+                <button
+                  type="button"
+                  className="player__btn"
+                  onClick={toggleFullscreen}
+                  aria-label={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+                  title={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+                >
+                  <Icon name={fullscreen ? 'shrink' : 'expand'} />
                 </button>
               )}
-              <button
-                type="button"
-                className="stage__overlay-btn"
-                onClick={exitFullscreen}
-                aria-label="Sair da tela cheia"
-              >
-                <Icon name="shrink" />
-              </button>
             </div>
-          )}
+          </div>
+          <div className="tv__knobs" aria-hidden="true">
+            <span />
+            <span />
+          </div>
         </div>
-        <div className="tv__knobs" aria-hidden="true">
-          <span />
-          <span />
-        </div>
-      </div>
-      <div className="stage__bar">
-        {hasAudio ? (
-          <Button
-            variant={muted ? 'primary' : 'secondary'}
-            icon={muted ? 'volume' : 'mute'}
-            onClick={toggleSound}
-          >
-            {muted ? 'Ativar som' : 'Desativar som'}
-          </Button>
-        ) : (
-          <p className="stage__hint">
-            <Icon name="mute" size={18} />
-            Esta transmissão está sem áudio.
-          </p>
-        )}
-        {canFullscreen && (
-          <Button variant="secondary" icon="expand" onClick={enterFullscreen}>
-            Tela cheia
-          </Button>
-        )}
       </div>
     </div>
   );
