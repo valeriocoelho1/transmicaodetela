@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type EndReason, type PublicViewer, ROOM_ID_REGEX } from '@app/shared';
+import { SERVER_DROP_RETRY_MS } from '../config';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
 import { ViewerReceiver } from '../lib/webrtc/viewer-receiver';
 
@@ -87,7 +88,15 @@ export function useViewerSession(roomId: string, name: string) {
       joinedRef.current = false;
       if (isFinal()) return;
       receiver.close();
-      if (reason !== 'io client disconnect') setState('reconnecting');
+      if (reason === 'io client disconnect') return;
+      setState('reconnecting');
+      // The server ends a room with room:ended first; a bare server disconnect means a limit
+      // was hit, and Socket.IO does not retry those on its own.
+      if (reason === 'io server disconnect') {
+        setTimeout(() => {
+          if (!isFinal()) socket.connect();
+        }, SERVER_DROP_RETRY_MS);
+      }
     });
     socket.on('connect', async () => {
       const ack = await socket.emitWithAck('viewer:join', { roomId, name: nameRef.current });

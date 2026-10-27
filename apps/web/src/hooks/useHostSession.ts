@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EndReason, RoomViewer } from '@app/shared';
-import { CAPTURE_STUCK_HINT_MS } from '../config';
+import { CAPTURE_STUCK_HINT_MS, SERVER_DROP_RETRY_MS } from '../config';
 import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
 import { clearHostToken, getHostToken } from '../lib/host-token';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
@@ -102,11 +102,19 @@ export function useHostSession(roomId: string, name: string) {
     socket.on('room:ended', ({ reason }) => {
       if (!cancelled) finish(reason);
     });
+    const isFinal = () =>
+      cancelled || ['ended', 'not_found', 'forbidden'].includes(stateRef.current);
     socket.on('disconnect', (reason) => {
       joinedRef.current = false;
-      if (cancelled || stateRef.current === 'ended') return;
-      if (reason === 'io server disconnect') finish('HOST_ENDED');
-      else setState('reconnecting');
+      if (isFinal() || reason === 'io client disconnect') return;
+      setState('reconnecting');
+      // Ending or replacing the host arrives as an event first. A bare server disconnect means
+      // a limit was hit, and Socket.IO does not retry those on its own.
+      if (reason === 'io server disconnect') {
+        setTimeout(() => {
+          if (!isFinal()) socket.connect();
+        }, SERVER_DROP_RETRY_MS);
+      }
     });
     socket.on('connect', async () => {
       const ack = await socket.emitWithAck('host:join', {
