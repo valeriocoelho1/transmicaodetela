@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { captureErrorMessage, isDisplayCaptureSupported } from './capture';
+import { captureErrorMessage, isDisplayCaptureSupported, startDisplayCapture } from './capture';
 
 const domError = (name: string) => new DOMException('message', name);
 
@@ -31,5 +31,35 @@ describe('isDisplayCaptureSupported', () => {
   it('is true when getDisplayMedia exists', () => {
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia: () => undefined } });
     expect(isDisplayCaptureSupported()).toBe(true);
+  });
+});
+
+describe('startDisplayCapture', () => {
+  const fakeStream = () =>
+    ({ getVideoTracks: () => [{ contentHint: '' }] }) as unknown as MediaStream;
+
+  it('asks for screen and audio', async () => {
+    const getDisplayMedia = vi.fn<(options: DisplayMediaStreamOptions) => Promise<MediaStream>>(
+      async () => fakeStream(),
+    );
+    await startDisplayCapture(getDisplayMedia);
+    expect(getDisplayMedia).toHaveBeenCalledTimes(1);
+    expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({ audio: true });
+  });
+
+  it('retries with video only when the browser rejects the options', async () => {
+    const getDisplayMedia = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('audio not supported'))
+      .mockResolvedValueOnce(fakeStream());
+    await startDisplayCapture(getDisplayMedia);
+    expect(getDisplayMedia).toHaveBeenCalledTimes(2);
+    expect(getDisplayMedia.mock.calls[1]?.[0]).toMatchObject({ audio: false });
+  });
+
+  it('does not ask again when the user cancels', async () => {
+    const getDisplayMedia = vi.fn().mockRejectedValue(domError('NotAllowedError'));
+    await expect(startDisplayCapture(getDisplayMedia)).rejects.toThrow();
+    expect(getDisplayMedia).toHaveBeenCalledTimes(1);
   });
 });
