@@ -7,7 +7,9 @@
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
-		Permissions-Policy "display-capture=(self)"
+		Permissions-Policy "display-capture=(self), camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy same-origin
+		-Server
 	}
 
 	handle /api/* {
