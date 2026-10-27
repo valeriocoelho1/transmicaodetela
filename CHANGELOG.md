@@ -21,6 +21,7 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - O anfitrião recria sozinho a conexão de um espectador que falha ou fica desconectado, até 3 vezes seguidas.
 - Se o navegador recusar o pedido de áudio, a tela é compartilhada só com vídeo em vez de falhar, e o aviso explica como incluir o som.
 - Enquanto a janela de compartilhamento não responde, dá para cancelar; depois de 8 segundos aparece a opção "Compartilhar sem som", que pede só o vídeo.
+- No Mac, o Chrome pede só o som da guia, sem o som do sistema: o pedido de som do sistema deixava o compartilhamento travado.
 
 ### Segurança e operação
 

@@ -3,7 +3,7 @@ import { CAPTURE_FRAME_RATE, CAPTURE_MAX_HEIGHT, CAPTURE_MAX_WIDTH } from '../co
 export const UNSUPPORTED_BROWSER_MESSAGE =
   'Este navegador não permite compartilhar a tela. Use um navegador de computador atualizado.';
 export const NO_AUDIO_SHARED_MESSAGE =
-  'O som não foi compartilhado. No Chrome ou no Edge, escolha uma guia do navegador e ative a opção de compartilhar o áudio da guia. Em janela ou tela inteira, o som só aparece em alguns sistemas, e Safari e Firefox não compartilham som.';
+  'O som não foi compartilhado. No Chrome ou no Edge, escolha uma guia do navegador e ative a opção de compartilhar o áudio da guia. Em janela ou tela inteira, o som do sistema só vai junto no Windows, e Safari e Firefox não compartilham som.';
 
 export function isDisplayCaptureSupported(): boolean {
   return (
@@ -41,6 +41,12 @@ const video: MediaTrackConstraints = {
   height: { max: CAPTURE_MAX_HEIGHT },
 };
 
+// Chrome on macOS can leave the request pending forever when it asks the system for audio
+// capture, so the Mac only asks for tab audio, which needs no system permission.
+function isMacOS(): boolean {
+  return typeof navigator !== 'undefined' && /Macintosh|Mac OS X/.test(navigator.userAgent);
+}
+
 // Errors thrown while the browser validates the options, before it shows its picker.
 const OPTION_ERRORS = ['TypeError', 'NotSupportedError', 'OverconstrainedError'];
 
@@ -54,7 +60,7 @@ export async function startDisplayCapture(
     audio,
     selfBrowserSurface: 'exclude',
     surfaceSwitching: 'include',
-    systemAudio: audio ? 'include' : 'exclude',
+    systemAudio: audio && !isMacOS() ? 'include' : 'exclude',
   };
   let stream: MediaStream;
   try {

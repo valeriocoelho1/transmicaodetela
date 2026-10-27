@@ -37,14 +37,36 @@ describe('isDisplayCaptureSupported', () => {
 describe('startDisplayCapture', () => {
   const fakeStream = () =>
     ({ getVideoTracks: () => [{ contentHint: '' }] }) as unknown as MediaStream;
+  const windowsAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0.0.0';
+  const macAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141.0.0.0';
 
-  it('asks for screen and audio', async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('asks for screen, tab audio and system audio', async () => {
+    vi.stubGlobal('navigator', { userAgent: windowsAgent });
     const getDisplayMedia = vi.fn<(options: DisplayMediaStreamOptions) => Promise<MediaStream>>(
       async () => fakeStream(),
     );
     await startDisplayCapture({}, getDisplayMedia);
     expect(getDisplayMedia).toHaveBeenCalledTimes(1);
-    expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({ audio: true });
+    expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({
+      audio: true,
+      systemAudio: 'include',
+    });
+  });
+
+  it('asks the Mac for tab audio only', async () => {
+    vi.stubGlobal('navigator', { userAgent: macAgent });
+    const getDisplayMedia = vi.fn<(options: DisplayMediaStreamOptions) => Promise<MediaStream>>(
+      async () => fakeStream(),
+    );
+    await startDisplayCapture({}, getDisplayMedia);
+    expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({
+      audio: true,
+      systemAudio: 'exclude',
+    });
   });
 
   it('asks for screen only, without system audio, when sound is turned off', async () => {
