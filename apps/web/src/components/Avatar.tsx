@@ -1,8 +1,11 @@
 import type { ProfileAvatar } from '@app/shared';
+import { avatarColor, initialOf } from '../lib/display-name';
 import { AVATAR_CLIPS } from '../lib/profile-avatar';
 
 interface AvatarProps {
-  avatar: ProfileAvatar;
+  name: string;
+  // Without a picture the avatar is the first letter of the name.
+  avatar: ProfileAvatar | null;
   size?: number;
 }
 
@@ -18,9 +21,20 @@ function startMuted(video: HTMLVideoElement | null) {
   if (!reducedMotion()) video.play()?.catch(() => undefined);
 }
 
-export function Avatar({ avatar, size = 40 }: AvatarProps) {
+export function Avatar({ name, avatar, size = 40 }: AvatarProps) {
   // A server from another release may send a picture this page does not know.
-  const clip = AVATAR_CLIPS[avatar] ?? AVATAR_CLIPS.kitten;
+  const clip = avatar ? AVATAR_CLIPS[avatar] : undefined;
+  if (!clip) {
+    return (
+      <span
+        className="avatar avatar--letter"
+        style={{ width: size, height: size, fontSize: size * 0.45, background: avatarColor(name) }}
+        aria-hidden="true"
+      >
+        {initialOf(name)}
+      </span>
+    );
+  }
   return (
     <span className="avatar" style={{ width: size, height: size }} aria-hidden="true">
       <video

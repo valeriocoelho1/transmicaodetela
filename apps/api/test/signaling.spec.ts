@@ -94,12 +94,12 @@ describe('SignalingGateway', () => {
       resumeToken: expect.any(String),
       resumed: false,
       live: false,
-      host: { name: 'Anfitrião', avatar: 'kitten', online: true },
+      host: { name: 'Anfitrião', avatar: null, online: true },
       selfId: expect.any(String),
-      viewers: [{ id: expect.any(String), name: 'Espectador', avatar: 'kitten' }],
+      viewers: [{ id: expect.any(String), name: 'Espectador', avatar: null }],
       maxViewers: 10,
     });
-    expect(await joined).toEqual({ viewerId, name: 'Espectador', avatar: 'kitten' });
+    expect(await joined).toEqual({ viewerId, name: 'Espectador', avatar: null });
     expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
   });
 
@@ -170,8 +170,8 @@ describe('SignalingGateway', () => {
     await offerToB;
 
     expect(hostEvents).toEqual([
-      ['viewer:joined', { viewerId: a.viewerId, name: 'Espectador', avatar: 'kitten' }],
-      ['viewer:joined', { viewerId: b.viewerId, name: 'Espectador', avatar: 'kitten' }],
+      ['viewer:joined', { viewerId: a.viewerId, name: 'Espectador', avatar: null }],
+      ['viewer:joined', { viewerId: b.viewerId, name: 'Espectador', avatar: null }],
       ['signal:ice', { viewerId: a.viewerId, candidate }],
       ['signal:answer', { viewerId: a.viewerId, sdp: answerSdp }],
     ]);
@@ -239,7 +239,7 @@ describe('SignalingGateway', () => {
     const again = await joinHost(room.roomId, room.hostToken);
     expect(again.ack).toMatchObject({
       ok: true,
-      viewers: [{ viewerId, name: 'Espectador', avatar: 'kitten' }],
+      viewers: [{ viewerId, name: 'Espectador', avatar: null }],
     });
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect((await roomStatus(room.roomId)).status).toBe(200);
@@ -342,8 +342,8 @@ describe('SignalingGateway', () => {
     );
     const b = await joinViewer(room.roomId);
     expect(b.ack.viewers).toEqual([
-      { id: a.ack.selfId, name: 'Espectador', avatar: 'kitten' },
-      { id: b.ack.selfId, name: 'Espectador', avatar: 'kitten' },
+      { id: a.ack.selfId, name: 'Espectador', avatar: null },
+      { id: b.ack.selfId, name: 'Espectador', avatar: null },
     ]);
     expect((await listAtA).viewers).toEqual(b.ack.viewers);
     expect(JSON.stringify(b.ack.viewers)).not.toContain(a.viewerId);
@@ -365,9 +365,7 @@ describe('SignalingGateway', () => {
       'room:viewers',
     );
     b.viewer.disconnect();
-    expect((await left).viewers).toEqual([
-      { id: a.ack.selfId, name: 'Espectador', avatar: 'kitten' },
-    ]);
+    expect((await left).viewers).toEqual([{ id: a.ack.selfId, name: 'Espectador', avatar: null }]);
   });
 
   // Closing the transport looks like a lost network to the server, unlike socket.disconnect().
@@ -416,7 +414,7 @@ describe('SignalingGateway', () => {
       roomId: room.roomId,
       resume: { viewerId, token: ack.resumeToken, needsOffer: true },
     });
-    expect(await joinedAgain).toEqual({ viewerId, name: 'Espectador', avatar: 'kitten' });
+    expect(await joinedAgain).toEqual({ viewerId, name: 'Espectador', avatar: null });
   });
 
   it('23. an away viewer is removed after VIEWER_GRACE_MS and a wrong token gets a new seat', async () => {
@@ -449,13 +447,28 @@ describe('SignalingGateway', () => {
 
     const offline = waitForEvent(viewer, 'room:host');
     dropConnection(host);
-    expect(await offline).toEqual({ name: 'Anfitrião', avatar: 'kitten', online: false });
+    expect(await offline).toEqual({ name: 'Anfitrião', avatar: null, online: false });
     expect((await roomStatus(room.roomId)).body.live).toBe(true);
 
     const online = waitForEvent(viewer, 'room:host');
     await joinHost(room.roomId, room.hostToken);
-    expect(await online).toEqual({ name: 'Anfitrião', avatar: 'kitten', online: true });
+    expect(await online).toEqual({ name: 'Anfitrião', avatar: null, online: true });
     expect(events.map(([event]) => event)).not.toContain('room:status');
+  });
+
+  it('26. a profile without a picture goes back to the initial letter', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const viewer = await t.connect();
+    const ack: ViewerJoinAck = await viewer.emitWithAck('viewer:join', {
+      roomId: room.roomId,
+      avatar: 'tongue',
+    });
+    if (!ack.ok) throw new Error(ack.error);
+    const updated = waitForEvent(host, 'viewer:updated');
+    viewer.emit('user:profile', { name: 'Bia', avatar: null });
+    expect(await updated).toEqual({ viewerId: ack.viewerId, name: 'Bia', avatar: null });
   });
 
   it('25. rejects an avatar outside the presets', async () => {

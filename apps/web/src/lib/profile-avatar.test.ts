@@ -8,17 +8,20 @@ describe('profile-avatar', () => {
     localStorage.clear();
   });
 
-  it('picks a preset on the first visit and keeps it', () => {
-    const first = loadProfileAvatar();
-    expect(PROFILE_AVATARS).toContain(first);
-    expect(loadProfileAvatar()).toBe(first);
+  it('starts without a picture so the initial letter shows', () => {
+    expect(loadProfileAvatar()).toBeNull();
   });
 
-  it('replaces a stored value that is not a preset', () => {
-    localStorage.setItem('profile-avatar', 'confetti');
-    expect(PROFILE_AVATARS).toContain(loadProfileAvatar());
+  it('keeps a chosen picture and forgets it when cleared', () => {
     saveProfileAvatar('kitten');
     expect(loadProfileAvatar()).toBe('kitten');
+    saveProfileAvatar(null);
+    expect(loadProfileAvatar()).toBeNull();
+  });
+
+  it('ignores a stored value that is not a preset', () => {
+    localStorage.setItem('profile-picture', 'confetti');
+    expect(loadProfileAvatar()).toBeNull();
   });
 
   it('has a label for every preset', () => {

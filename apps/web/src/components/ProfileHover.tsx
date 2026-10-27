@@ -77,7 +77,7 @@ export function ProfileHover({
             className="profile-card"
             style={{ top: position.top, left: position.left, width: CARD_WIDTH }}
           >
-            <Avatar avatar={profile.avatar} size={96} />
+            <Avatar name={profile.name} avatar={profile.avatar} size={96} />
             <p className="profile-card__name">{profile.name}</p>
             {role && <p className="profile-card__role">{role}</p>}
           </div>,

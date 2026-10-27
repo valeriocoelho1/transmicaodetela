@@ -4,6 +4,7 @@ import {
   createRoomResponse,
   displayName,
   PROFILE_AVATARS,
+  profilePayload,
   profileAvatar,
   healthResponse,
   hostJoinPayload,
@@ -73,6 +74,12 @@ describe('profileAvatar', () => {
       expect(profileAvatar.safeParse(avatar).success).toBe(true);
     expect(profileAvatar.safeParse('confetti').success).toBe(false);
     expect(profileAvatar.safeParse('').success).toBe(false);
+  });
+
+  it('lets a profile go without a picture', () => {
+    expect(profilePayload.safeParse({ name: 'Ana', avatar: null }).success).toBe(true);
+    expect(profilePayload.safeParse({ name: 'Ana', avatar: 'kitten' }).success).toBe(true);
+    expect(profilePayload.safeParse({ name: 'Ana' }).success).toBe(false);
   });
 });
 

@@ -25,7 +25,7 @@ import {
 } from '@app/shared';
 import type { Server, Socket } from 'socket.io';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
-import { DEFAULT_AVATAR, RoomsService } from '../rooms/rooms.service';
+import { RoomsService } from '../rooms/rooms.service';
 import { ConnectionLimiter } from './connection-limiter';
 import { IceService } from './ice.service';
 
@@ -186,7 +186,7 @@ export class SignalingGateway
       this.server.to(room.hostSocketId).emit('viewer:joined', {
         viewerId,
         name: self?.name ?? '',
-        avatar: self?.avatar ?? DEFAULT_AVATAR,
+        avatar: self?.avatar ?? null,
       });
     }
     if (!resumed) {
@@ -206,7 +206,7 @@ export class SignalingGateway
       live: room?.live ?? false,
       host: {
         name: room?.hostName ?? '',
-        avatar: room?.hostAvatar ?? DEFAULT_AVATAR,
+        avatar: room?.hostAvatar ?? null,
         online: Boolean(room?.hostSocketId),
       },
       selfId: self?.publicId ?? '',

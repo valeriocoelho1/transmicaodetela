@@ -14,7 +14,7 @@ export interface Viewer {
   socketId: string | null;
   publicId: string;
   name: string;
-  avatar: ProfileAvatar;
+  avatar: ProfileAvatar | null;
   resumeTokenHash: Buffer;
   disconnectedAt: number | null;
 }
@@ -27,14 +27,13 @@ export interface Room {
   hostSocketId: string | null;
   hostDisconnectedAt: number | null;
   hostName: string;
-  hostAvatar: ProfileAvatar;
+  hostAvatar: ProfileAvatar | null;
   live: boolean;
   viewers: Map<string, Viewer>;
 }
 
 export const DEFAULT_HOST_NAME = 'Anfitrião';
 export const DEFAULT_VIEWER_NAME = 'Espectador';
-export const DEFAULT_AVATAR: ProfileAvatar = 'kitten';
 
 export class RoomLimitReachedError extends Error {
   constructor() {
@@ -78,7 +77,7 @@ export class RoomsService {
       hostSocketId: null,
       hostDisconnectedAt: null,
       hostName: DEFAULT_HOST_NAME,
-      hostAvatar: DEFAULT_AVATAR,
+      hostAvatar: null,
       live: false,
       viewers: new Map(),
     });
@@ -100,7 +99,7 @@ export class RoomsService {
     roomId: string,
     socketId: string,
     name?: string,
-    avatar?: ProfileAvatar,
+    avatar?: ProfileAvatar | null,
   ): { previousSocketId: string | null } {
     const room = this.get(roomId);
     if (!room) return { previousSocketId: null };
@@ -108,7 +107,7 @@ export class RoomsService {
     room.hostEverJoined = true;
     room.hostSocketId = socketId;
     if (name) room.hostName = name;
-    if (avatar) room.hostAvatar = avatar;
+    if (avatar !== undefined) room.hostAvatar = avatar;
     room.hostDisconnectedAt = null;
     return { previousSocketId: previous !== socketId ? previous : null };
   }
@@ -135,7 +134,7 @@ export class RoomsService {
     roomId: string,
     socketId: string,
     name = DEFAULT_VIEWER_NAME,
-    avatar: ProfileAvatar = DEFAULT_AVATAR,
+    avatar: ProfileAvatar | null = null,
   ): AddViewerResult {
     const room = this.get(roomId);
     if (!room) return { ok: false, error: 'ROOM_NOT_FOUND' };
@@ -188,14 +187,19 @@ export class RoomsService {
     return room.viewers.delete(viewerId);
   }
 
-  updateHost(roomId: string, name: string, avatar: ProfileAvatar): void {
+  updateHost(roomId: string, name: string, avatar: ProfileAvatar | null): void {
     const room = this.get(roomId);
     if (!room) return;
     room.hostName = name;
     room.hostAvatar = avatar;
   }
 
-  updateViewer(roomId: string, viewerId: string, name: string, avatar: ProfileAvatar): boolean {
+  updateViewer(
+    roomId: string,
+    viewerId: string,
+    name: string,
+    avatar: ProfileAvatar | null,
+  ): boolean {
     const viewer = this.get(roomId)?.viewers.get(viewerId);
     if (!viewer) return false;
     viewer.name = name;

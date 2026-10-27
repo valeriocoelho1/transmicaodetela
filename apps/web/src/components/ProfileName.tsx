@@ -8,6 +8,9 @@ import { Button } from './Button';
 import { Icon } from './Icon';
 import { ProfileHover } from './ProfileHover';
 
+// The first option keeps the initial letter; the GIFs are optional.
+const AVATAR_OPTIONS = [null, ...PROFILE_AVATARS];
+
 interface ProfileNameProps {
   profile: Profile;
   role: string;
@@ -55,7 +58,7 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
           aria-label={`Seu perfil: ${profile.name}. Editar`}
           aria-expanded={draft !== null}
         >
-          <Avatar avatar={profile.avatar} />
+          <Avatar name={profile.name} avatar={profile.avatar} />
           <span className="profile__name">{profile.name}</span>
           <Icon name="edit" size={16} />
         </button>
@@ -64,7 +67,7 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
       {draft && (
         <form className="profile-editor" onSubmit={submit} aria-label="Editar perfil">
           <div className="profile-editor__preview">
-            <Avatar avatar={draft.avatar} size={72} />
+            <Avatar name={parsedName ?? profile.name} avatar={draft.avatar} size={72} />
           </div>
           <label className="profile-editor__field">
             <span>Seu nome</span>
@@ -81,17 +84,17 @@ export function ProfileName({ profile, role, onChange }: ProfileNameProps) {
           <fieldset className="avatar-picker">
             <legend>Foto do perfil</legend>
             <div className="avatar-picker__options">
-              {PROFILE_AVATARS.map((avatar) => (
-                <label key={avatar} className="avatar-picker__option">
+              {AVATAR_OPTIONS.map((avatar) => (
+                <label key={avatar ?? 'none'} className="avatar-picker__option">
                   <input
                     type="radio"
                     name="profile-avatar"
-                    value={avatar}
+                    value={avatar ?? 'none'}
                     checked={draft.avatar === avatar}
                     onChange={() => setDraft({ ...draft, avatar })}
                   />
-                  <Avatar avatar={avatar} size={44} />
-                  <span>{AVATAR_LABELS[avatar]}</span>
+                  <Avatar name={parsedName ?? profile.name} avatar={avatar} size={44} />
+                  <span>{avatar ? AVATAR_LABELS[avatar] : 'Inicial'}</span>
                 </label>
               ))}
             </div>

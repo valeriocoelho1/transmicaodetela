@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  avatarColor,
+  initialOf,
   loadDisplayName,
   parseDisplayName,
   randomDisplayName,
@@ -25,5 +27,15 @@ describe('display-name', () => {
     expect(loadDisplayName()).not.toBe('   ');
     saveDisplayName('Ana');
     expect(loadDisplayName()).toBe('Ana');
+  });
+
+  it('takes the first character as an uppercase initial', () => {
+    expect(initialOf('  ana')).toBe('A');
+    expect(initialOf('élio')).toBe('É');
+    expect(initialOf('🎮 gamer')).toBe('🎮');
+  });
+
+  it('gives the same name the same color', () => {
+    expect(avatarColor('Ana')).toBe(avatarColor('Ana'));
   });
 });

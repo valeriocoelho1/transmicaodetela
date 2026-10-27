@@ -1,4 +1,4 @@
-import { PROFILE_AVATARS, type ProfileAvatar, profileAvatar } from '@app/shared';
+import { type ProfileAvatar, profileAvatar } from '@app/shared';
 import dancingPoster from '../assets/avatars/dancing.jpg';
 import dancingVideo from '../assets/avatars/dancing.mp4';
 import kittenPoster from '../assets/avatars/kitten.jpg';
@@ -8,7 +8,8 @@ import pointingVideo from '../assets/avatars/pointing.mp4';
 import tonguePoster from '../assets/avatars/tongue.jpg';
 import tongueVideo from '../assets/avatars/tongue.mp4';
 
-const STORAGE_KEY = 'profile-avatar';
+// A new key, so pictures assigned at random by an earlier version do not stick.
+const STORAGE_KEY = 'profile-picture';
 
 export const AVATAR_LABELS: Record<ProfileAvatar, string> = {
   pointing: 'Apontando',
@@ -25,26 +26,20 @@ export const AVATAR_CLIPS: Record<ProfileAvatar, { video: string; poster: string
   tongue: { video: tongueVideo, poster: tonguePoster },
 };
 
-export function randomAvatar(): ProfileAvatar {
-  const [value = 0] = crypto.getRandomValues(new Uint32Array(1));
-  return PROFILE_AVATARS[value % PROFILE_AVATARS.length]!;
-}
-
-export function loadProfileAvatar(): ProfileAvatar {
+// Without a saved picture the avatar is the first letter of the name.
+export function loadProfileAvatar(): ProfileAvatar | null {
   try {
     const stored = profileAvatar.safeParse(localStorage.getItem(STORAGE_KEY));
-    if (stored.success) return stored.data;
-    const picked = randomAvatar();
-    localStorage.setItem(STORAGE_KEY, picked);
-    return picked;
+    return stored.success ? stored.data : null;
   } catch {
-    return randomAvatar();
+    return null;
   }
 }
 
-export function saveProfileAvatar(avatar: ProfileAvatar): void {
+export function saveProfileAvatar(avatar: ProfileAvatar | null): void {
   try {
-    localStorage.setItem(STORAGE_KEY, avatar);
+    if (avatar) localStorage.setItem(STORAGE_KEY, avatar);
+    else localStorage.removeItem(STORAGE_KEY);
   } catch {
     // Storage may be unavailable; the avatar still applies to this visit.
   }

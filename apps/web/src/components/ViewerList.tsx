@@ -45,7 +45,7 @@ export function ViewerList({ viewers, maxViewers, selfId, emptyText, hint }: Vie
                 className="viewer-list__person"
                 focusable
               >
-                <Avatar avatar={viewer.avatar} size={34} />
+                <Avatar name={viewer.name} avatar={viewer.avatar} size={34} />
                 <span className="viewer-list__name">{viewer.name}</span>
                 {viewer.id === selfId && <span className="viewer-list__self">você</span>}
               </ProfileHover>

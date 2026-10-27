@@ -5,7 +5,7 @@ import { loadProfileAvatar, saveProfileAvatar } from '../lib/profile-avatar';
 
 export interface Profile {
   name: string;
-  avatar: ProfileAvatar;
+  avatar: ProfileAvatar | null;
 }
 
 export function useProfile() {
