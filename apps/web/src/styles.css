@@ -1137,9 +1137,9 @@ input {
 }
 
 .repo-card__name {
-  font-family: var(--font-pixel);
-  font-size: clamp(1.375rem, 2.6vw, 2.125rem);
-  font-weight: 400;
+  font-family: var(--font-body);
+  font-size: 1.1875rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
