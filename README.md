@@ -87,7 +87,7 @@ Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.
 
 ## Produção
 
-O que é preciso: uma VM Linux com Docker e Docker Compose, um domínio apontando para o IP da VM e, no firewall da nuvem, as portas 80/tcp, 443/tcp, 443/udp, 3478/udp e tcp e 49152–49252/udp abertas (tabela completa em [`docs/arquitetura/05-infraestrutura.md`](docs/arquitetura/05-infraestrutura.md)).
+O que é preciso: uma VM Linux com Docker e Docker Compose, um domínio apontando para o IP da VM (o domínio e o `www`, que redireciona para o domínio) e, no firewall da nuvem, as portas 80/tcp, 443/tcp, 443/udp, 3478/udp e tcp e 49152–49252/udp abertas (tabela completa em [`docs/arquitetura/05-infraestrutura.md`](docs/arquitetura/05-infraestrutura.md)).
 
 Na VM, na raiz do repositório:
 

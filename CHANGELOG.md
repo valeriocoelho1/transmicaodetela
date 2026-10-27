@@ -41,6 +41,7 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - coturn sem relay TCP, com banda limitada por sessão e faixas IPv6 privadas negadas.
 - `multer` forçado para 2.5.0 ou mais (GHSA-q7qp-rjg7-q26m).
 - Imagens Docker com a tag `APP_VERSION`, para rollback sem rebuild.
+- `www.$DOMAIN` redireciona (301) para `https://$DOMAIN`, mantendo caminho e parâmetros.
 
 ## 0.1.0
 

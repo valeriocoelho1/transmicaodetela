@@ -33,3 +33,8 @@
 		file_server
 	}
 }
+
+# The www address only sends people to the main one, keeping the path and query.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

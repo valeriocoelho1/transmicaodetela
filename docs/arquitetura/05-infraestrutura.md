@@ -80,11 +80,16 @@ Os Dockerfiles usam a mesma major do Node de `.nvmrc`. O contexto de build é a 
 		file_server
 	}
 }
+
+# The www address only sends people to the main one, keeping the path and query.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
 ```
 
 `Content-Security-Policy` só permite recursos da própria origem (as fontes embutidas no CSS como `data:` e o WebSocket em `wss://$DOMAIN`), o que limita o estrago de um XSS, que é o único jeito de roubar o `hostToken` do `localStorage`. `Strict-Transport-Security` faz o navegador nunca mais abrir o site por HTTP; não usa `includeSubDomains` porque os outros subdomínios do domínio podem não ter HTTPS. `index.html` vai sem cache e `/assets/*` (nomes com hash) com cache longo, para cada deploy chegar a quem abrir a página.
 
-O Caddy obtém e renova o certificado sozinho, desde que `DOMAIN` aponte para a VM e as portas 80 e 443 estejam abertas. O proxy cuida do upgrade para WebSocket sem configuração extra. Para um teste local, `DOMAIN=localhost` faz o Caddy usar um certificado de uma autoridade interna dele.
+O Caddy obtém e renova o certificado sozinho, desde que `DOMAIN` aponte para a VM e as portas 80 e 443 estejam abertas. O endereço `www.$DOMAIN` também ganha certificado e responde com redirecionamento permanente (301) para `https://$DOMAIN`, mantendo o caminho e os parâmetros; para isso, o `www` precisa de um registro DNS apontando para a mesma VM. Sem ele, só o `www` fica sem certificado, e o endereço principal segue funcionando. O proxy cuida do upgrade para WebSocket sem configuração extra. Para um teste local, `DOMAIN=localhost` faz o Caddy usar um certificado de uma autoridade interna dele.
 
 ## `docker-compose.prod.yml` (esboço original; o arquivo do repositório é a versão atual)
 
