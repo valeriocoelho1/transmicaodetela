@@ -1543,6 +1543,12 @@ button.profile .icon {
   .room-grid--single {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* The viewer only needs the list on the side, so it gets a narrower column and more video. */
+  .room-grid--viewer {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+    gap: var(--space-4);
+  }
 }
 
 /* On phones the stage sits above the side panel, so its height comes from the width. */

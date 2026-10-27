@@ -68,7 +68,7 @@ export function ViewerPage() {
             <StatusPill tone="live" label="Ao vivo" />
           ))}
       </RoomBar>
-      <div className={showList ? 'room-grid' : 'room-grid room-grid--single'}>
+      <div className={showList ? 'room-grid room-grid--viewer' : 'room-grid room-grid--single'}>
         {watching ? (
           <RemoteVideo stream={stream} hasAudio={session.hasAudio} />
         ) : (
