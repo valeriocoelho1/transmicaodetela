@@ -19,7 +19,7 @@ test('7. reloading the host page keeps the room and the video comes back', async
 
   await host.reload();
   await expect(viewer.getByText(WAITING)).toBeVisible();
-  await expect(host.getByText('1 espectador', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('1 espectador', { exact: true })).toBeVisible();
   await host.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(host.getByText('Ao vivo')).toBeVisible();
   await expectVideoPlaying(viewer);
@@ -44,7 +44,7 @@ test('9. opening the room in a second host tab replaces the first one', async ({
   const { host } = await openHostRoom(browser);
   const second = await host.context().newPage();
   await second.goto(host.url());
-  await expect(second.getByText('0 espectadores')).toBeVisible();
+  await expect(second.getByLabel('0 espectadores', { exact: true })).toBeVisible();
   await expect(host.getByText('Esta sala foi aberta em outra aba.')).toBeVisible();
   await expect(second.getByRole('button', { name: 'Compartilhar tela' })).toBeEnabled();
 });
@@ -70,5 +70,5 @@ test('11. a viewer recovers after losing the network', async ({ browser }) => {
   });
   await viewer.context().setOffline(false);
   await expectVideoPlaying(viewer);
-  await expect(host.getByText('1 espectador', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('1 espectador', { exact: true })).toBeVisible();
 });

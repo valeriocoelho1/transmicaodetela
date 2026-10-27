@@ -7,8 +7,12 @@ React + Vite + TypeScript. CSS simples, sem biblioteca de componentes. Toda a m�
 | Rota | Tela |
 | --- | --- |
 | `/` | Início: explica em uma frase e tem o botão "Criar sala" |
-| `/host/:roomId` | Anfitrião: link, compartilhar tela, contador de espectadores, encerrar |
-| `/r/:roomId` | Espectador: vídeo ou estado de espera |
+| `/host/:roomId` | Anfitrião: link, compartilhar tela, lista de espectadores com nomes, encerrar |
+| `/r/:roomId` | Espectador: vídeo (com tela cheia) ou estado de espera, e o nome do anfitrião |
+
+Nas duas telas da sala, a barra do topo mostra o nome da pessoa com um avatar da inicial. O nome começa aleatório (animal + adjetivo), fica no `localStorage` (`display-name`) e pode ser trocado ali; a troca vai para a sala por `user:rename`.
+
+Tela cheia: com `requestFullscreen` na moldura do vídeo e, em celular, `screen.orientation.lock` para deitado ou em pé conforme o formato do vídeo recebido. No iPhone, que não tem tela cheia de elemento, usa o player nativo (`webkitEnterFullscreen`).
 | `*` | Página não encontrada |
 
 O link que o anfitrião envia é `<origem do site>/r/<roomId>`, montado com `window.location.origin`.
@@ -179,7 +183,9 @@ Expõe: `state`, `stream`, `hasAudio`, `endedReason`, `retry()`.
 | Início, erro 503 | O servidor está lotado agora. Tente novamente mais tarde. |
 | Anfitrião, título | Sua sala |
 | Anfitrião, limite | Até {maxViewers} espectadores ao mesmo tempo. |
-| Anfitrião, contador | 0 espectadores / 1 espectador / N espectadores |
+| Anfitrião, contador | N/{maxViewers}, lido como 0 espectadores / 1 espectador / N espectadores |
+| Anfitrião, lista vazia | Ninguém assistindo ainda. Envie o link da sala. |
+| Espectador, subtítulo | de {nome do anfitrião} |
 | Anfitrião, botões | Compartilhar tela · Parar transmissão · Compartilhar novamente · Encerrar sala |
 | Anfitrião, sem acesso | Você não tem acesso de anfitrião a esta sala. |
 | Anfitrião, outra aba | Esta sala foi aberta em outra aba. |

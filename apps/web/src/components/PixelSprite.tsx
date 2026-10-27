@@ -41,16 +41,6 @@ const maps = {
     'KK..KCK...',
     '.....KK...',
   ],
-  viewer: [
-    '..KKKK..',
-    '.KFFFFK.',
-    '.KFFFFK.',
-    '..KKKK..',
-    '.KKKKKK.',
-    'KFFFFFFK',
-    'KFFFFFFK',
-    'KKKKKKKK',
-  ],
   github: [
     '....FFFFFFFF....',
     '..FFFFFFFFFFFF..',

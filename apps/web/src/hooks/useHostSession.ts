@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { EndReason } from '@app/shared';
+import type { EndReason, RoomViewer } from '@app/shared';
 import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
 import { clearHostToken, getHostToken } from '../lib/host-token';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
@@ -22,9 +22,9 @@ interface Session {
   broadcaster: HostBroadcaster;
 }
 
-export function useHostSession(roomId: string) {
+export function useHostSession(roomId: string, name: string) {
   const [state, setStateValue] = useState<HostState>('connecting');
-  const [viewerCount, setViewerCount] = useState(0);
+  const [viewers, setViewers] = useState<RoomViewer[]>([]);
   const [maxViewers, setMaxViewers] = useState<number | null>(null);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const [audioMissing, setAudioMissing] = useState(false);
@@ -35,6 +35,8 @@ export function useHostSession(roomId: string) {
   const stateRef = useRef<HostState>('connecting');
   const sessionRef = useRef<Session | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const nameRef = useRef(name);
+  const joinedRef = useRef(false);
 
   const setState = useCallback((next: HostState) => {
     stateRef.current = next;
@@ -74,15 +76,17 @@ export function useHostSession(roomId: string) {
       peerFailed: () => undefined,
     });
     sessionRef.current = { socket, broadcaster };
-    const syncCount = () => setViewerCount(broadcaster.viewerCount);
 
-    socket.on('viewer:joined', ({ viewerId }) => {
-      broadcaster.addViewer(viewerId);
-      syncCount();
+    socket.on('viewer:joined', (viewer) => {
+      broadcaster.addViewer(viewer.viewerId);
+      setViewers((list) => [...list.filter((v) => v.viewerId !== viewer.viewerId), viewer]);
+    });
+    socket.on('viewer:renamed', (viewer) => {
+      setViewers((list) => list.map((v) => (v.viewerId === viewer.viewerId ? viewer : v)));
     });
     socket.on('viewer:left', ({ viewerId }) => {
       broadcaster.removeViewer(viewerId);
-      syncCount();
+      setViewers((list) => list.filter((v) => v.viewerId !== viewerId));
     });
     socket.on('signal:answer', ({ viewerId, sdp }) => void broadcaster.handleAnswer(viewerId, sdp));
     socket.on('signal:ice', (payload) => {
@@ -95,22 +99,28 @@ export function useHostSession(roomId: string) {
       if (!cancelled) finish(reason);
     });
     socket.on('disconnect', (reason) => {
+      joinedRef.current = false;
       if (cancelled || stateRef.current === 'ended') return;
       if (reason === 'io server disconnect') finish('HOST_ENDED');
       else setState('reconnecting');
     });
     socket.on('connect', async () => {
-      const ack = await socket.emitWithAck('host:join', { roomId, hostToken });
+      const ack = await socket.emitWithAck('host:join', {
+        roomId,
+        hostToken,
+        name: nameRef.current,
+      });
       if (cancelled || stateRef.current === 'ended') return;
       if (!ack.ok) {
         setState('not_found');
         socket.disconnect();
         return;
       }
+      joinedRef.current = true;
       broadcaster.setIceServers(ack.iceServers);
-      broadcaster.setViewers(ack.viewers);
+      broadcaster.setViewers(ack.viewers.map((viewer) => viewer.viewerId));
+      setViewers(ack.viewers);
       setMaxViewers(ack.maxViewers);
-      syncCount();
       if (streamRef.current) {
         broadcaster.rebuildAll();
         socket.emit('host:live', { live: true });
@@ -132,6 +142,12 @@ export function useHostSession(roomId: string) {
       stream?.getTracks().forEach((track) => track.stop());
     };
   }, [roomId, finish, setState]);
+
+  useEffect(() => {
+    if (nameRef.current === name) return;
+    nameRef.current = name;
+    if (joinedRef.current) sessionRef.current?.socket.emit('user:rename', { name });
+  }, [name]);
 
   const stopSharing = useCallback(() => {
     if (!streamRef.current) return;
@@ -182,7 +198,7 @@ export function useHostSession(roomId: string) {
 
   return {
     state,
-    viewerCount,
+    viewers,
     maxViewers,
     previewStream,
     audioMissing,

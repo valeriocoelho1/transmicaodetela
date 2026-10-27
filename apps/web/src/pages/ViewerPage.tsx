@@ -3,8 +3,10 @@ import { Button } from '../components/Button';
 import { Icon, type IconName } from '../components/Icon';
 import { Layout } from '../components/Layout';
 import { RemoteVideo } from '../components/RemoteVideo';
+import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
+import { useDisplayName } from '../hooks/useDisplayName';
 import { useViewerSession, type ViewerState } from '../hooks/useViewerSession';
 import {
   CONNECTING_MESSAGE,
@@ -25,15 +27,25 @@ const stateIcons: Record<Exclude<ViewerState, 'watching'>, IconName> = {
 
 export function ViewerPage() {
   const { roomId = '' } = useParams();
-  const { state, stream, hasAudio, endedReason, retry } = useViewerSession(roomId);
+  const [name, rename] = useDisplayName();
+  const { state, stream, hasAudio, endedReason, hostName, retry } = useViewerSession(roomId, name);
+  const head = (
+    <>
+      <RoomBar name={name} onRename={rename} />
+      <div className="page-head">
+        <div className="page-head__title">
+          <h1 className="page-title">Transmissão</h1>
+          {hostName && <p className="page-subtitle">de {hostName}</p>}
+        </div>
+        {state === 'watching' && stream && <StatusPill tone="live" label="Ao vivo" />}
+      </div>
+    </>
+  );
 
   if (state === 'watching' && stream) {
     return (
       <Layout>
-        <div className="page-head">
-          <h1 className="page-title">Transmissão</h1>
-          <StatusPill tone="live" label="Ao vivo" />
-        </div>
+        {head}
         <RemoteVideo stream={stream} hasAudio={hasAudio} />
       </Layout>
     );
@@ -55,9 +67,7 @@ export function ViewerPage() {
 
   return (
     <Layout>
-      <div className="page-head">
-        <h1 className="page-title">Transmissão</h1>
-      </div>
+      {head}
       <div className="stage">
         <div className="tv pixel-box">
           <div className="stage__frame">

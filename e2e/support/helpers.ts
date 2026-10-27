@@ -29,7 +29,7 @@ export async function openHostRoom(browser: Browser): Promise<{ host: Page; link
   await host.goto(url('/'));
   await host.getByRole('button', { name: 'Criar sala' }).click();
   await expect(host.getByRole('heading', { name: 'Sua sala' })).toBeVisible();
-  await expect(host.getByText('0 espectadores')).toBeVisible();
+  await expect(host.getByLabel('0 espectadores', { exact: true })).toBeVisible();
 
   await host.getByRole('button', { name: 'Copiar link' }).click();
   await expect(host.getByRole('button', { name: 'Link copiado' })).toBeVisible();

@@ -42,6 +42,13 @@ const paths = {
     </>
   ),
   expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
+  shrink: <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,
+  edit: (
+    <>
+      <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+      <path d="m13 7 4 4" />
+    </>
+  ),
   alert: (
     <>
       <circle cx="12" cy="12" r="9" />

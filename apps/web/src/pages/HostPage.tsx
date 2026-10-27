@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router';
+import type { RoomViewer } from '@app/shared';
+import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { Layout } from '../components/Layout';
 import { LinkField } from '../components/LinkField';
-import { PixelSprite } from '../components/PixelSprite';
+import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
+import { useDisplayName } from '../hooks/useDisplayName';
 import { useHostSession } from '../hooks/useHostSession';
 import {
   isDisplayCaptureSupported,
@@ -36,27 +39,47 @@ function LocalPreview({ stream }: { stream: MediaStream }) {
   return <video ref={ref} autoPlay playsInline muted />;
 }
 
-function ViewerSeats({ taken, total }: { taken: number; total: number }) {
-  const seats = Array.from({ length: total }, (_, seat) => seat < taken);
+interface ViewerListProps {
+  viewers: RoomViewer[];
+  maxViewers: number | null;
+}
+
+function ViewerList({ viewers, maxViewers }: ViewerListProps) {
   return (
-    <div className="viewer-seats" role="img" aria-label={`${taken} de ${total} lugares ocupados`}>
-      {seats.map((isTaken, seat) => (
-        <PixelSprite
-          key={seat}
-          name="viewer"
-          size={32}
-          className={
-            isTaken ? 'viewer-seats__seat viewer-seats__seat--taken' : 'viewer-seats__seat'
-          }
-        />
-      ))}
-    </div>
+    <Card className="viewers">
+      <div className="viewers__head">
+        <h2 className="card__title">Espectadores</h2>
+        <span className="viewers__count" aria-label={formatViewerCount(viewers.length)}>
+          {viewers.length}
+          {maxViewers !== null && <span className="muted">/{maxViewers}</span>}
+        </span>
+      </div>
+      {viewers.length === 0 ? (
+        <p className="viewers__empty">
+          <Icon name="users" />
+          Ninguém assistindo ainda. Envie o link da sala.
+        </p>
+      ) : (
+        <ul className="viewer-list" aria-live="polite">
+          {viewers.map((viewer) => (
+            <li key={viewer.viewerId} className="viewer-list__item">
+              <Avatar name={viewer.name} size={34} />
+              <span className="viewer-list__name">{viewer.name}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {maxViewers !== null && (
+        <p className="viewers__hint muted">Até {maxViewers} espectadores ao mesmo tempo.</p>
+      )}
+    </Card>
   );
 }
 
 export function HostPage() {
   const { roomId = '' } = useParams();
-  const session = useHostSession(roomId);
+  const [name, rename] = useDisplayName();
+  const session = useHostSession(roomId, name);
   const link = `${window.location.origin}/r/${roomId}`;
   const supported = isDisplayCaptureSupported();
   const { state } = session;
@@ -72,6 +95,7 @@ export function HostPage() {
             : END_REASON_MESSAGES[session.endedReason ?? 'HOST_ENDED'];
     return (
       <Layout width="narrow">
+        <RoomBar name={name} onRename={rename} />
         <h1 className="page-title">Sua sala</h1>
         <div className="card">
           <StateMessage
@@ -93,6 +117,7 @@ export function HostPage() {
 
   return (
     <Layout>
+      <RoomBar name={name} onRename={rename} />
       <div className="page-head">
         <h1 className="page-title">Sua sala</h1>
         <div aria-live="polite">
@@ -155,15 +180,7 @@ export function HostPage() {
           <Card title="Link da sala">
             <LinkField link={link} />
           </Card>
-          <Card title="Espectadores">
-            <p className="viewer-count">{inRoom ? formatViewerCount(session.viewerCount) : '—'}</p>
-            {session.maxViewers !== null && (
-              <>
-                <ViewerSeats taken={inRoom ? session.viewerCount : 0} total={session.maxViewers} />
-                <p className="muted">Até {session.maxViewers} espectadores ao mesmo tempo.</p>
-              </>
-            )}
-          </Card>
+          <ViewerList viewers={inRoom ? session.viewers : []} maxViewers={session.maxViewers} />
         </aside>
       </div>
     </Layout>

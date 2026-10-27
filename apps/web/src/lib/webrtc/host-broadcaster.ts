@@ -52,10 +52,6 @@ export class HostBroadcaster {
 
   constructor(private readonly callbacks: HostBroadcasterCallbacks) {}
 
-  get viewerCount(): number {
-    return this.knownViewers.size;
-  }
-
   setIceServers(list: IceServer[]): void {
     this.iceServers = list;
   }

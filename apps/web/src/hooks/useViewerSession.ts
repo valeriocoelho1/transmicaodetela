@@ -18,14 +18,17 @@ interface Session {
   receiver: ViewerReceiver;
 }
 
-export function useViewerSession(roomId: string) {
+export function useViewerSession(roomId: string, name: string) {
   const validRoomId = ROOM_ID_REGEX.test(roomId);
   const [state, setStateValue] = useState<ViewerState>(validRoomId ? 'connecting' : 'not_found');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [hasAudio, setHasAudio] = useState(false);
   const [endedReason, setEndedReason] = useState<EndReason | null>(null);
+  const [hostName, setHostName] = useState<string | null>(null);
   const stateRef = useRef<ViewerState>(state);
   const sessionRef = useRef<Session | null>(null);
+  const nameRef = useRef(name);
+  const joinedRef = useRef(false);
 
   const setState = useCallback((next: ViewerState) => {
     stateRef.current = next;
@@ -58,6 +61,7 @@ export function useViewerSession(roomId: string) {
     });
     sessionRef.current = { socket, receiver };
 
+    socket.on('room:host-name', ({ name: next }) => setHostName(next));
     socket.on('room:status', ({ live }) => {
       if (isFinal() || live) return;
       receiver.close();
@@ -76,19 +80,22 @@ export function useViewerSession(roomId: string) {
       setState('ended');
     });
     socket.on('disconnect', (reason) => {
+      joinedRef.current = false;
       if (isFinal()) return;
       receiver.close();
       if (reason !== 'io client disconnect') setState('reconnecting');
     });
     socket.on('connect', async () => {
-      const ack = await socket.emitWithAck('viewer:join', { roomId });
+      const ack = await socket.emitWithAck('viewer:join', { roomId, name: nameRef.current });
       if (isFinal()) return;
       if (!ack.ok) {
         setState(ack.error === 'ROOM_FULL' ? 'full' : 'not_found');
         socket.disconnect();
         return;
       }
+      joinedRef.current = true;
       receiver.setIceServers(ack.iceServers);
+      setHostName(ack.hostName);
       setState('waiting');
     });
     socket.connect();
@@ -102,6 +109,12 @@ export function useViewerSession(roomId: string) {
     };
   }, [roomId, validRoomId, setState]);
 
+  useEffect(() => {
+    if (nameRef.current === name) return;
+    nameRef.current = name;
+    if (joinedRef.current) sessionRef.current?.socket.emit('user:rename', { name });
+  }, [name]);
+
   const retry = useCallback(() => {
     const session = sessionRef.current;
     if (!session) return;
@@ -111,5 +124,5 @@ export function useViewerSession(roomId: string) {
     session.socket.connect();
   }, [setState]);
 
-  return { state, stream, hasAudio, endedReason, retry };
+  return { state, stream, hasAudio, endedReason, hostName, retry };
 }

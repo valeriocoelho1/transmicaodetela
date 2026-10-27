@@ -14,12 +14,12 @@ test('1. viewer who joins before the broadcast receives the video', async ({ bro
   const { host, link } = await openHostRoom(browser);
   const viewer = await openViewer(browser, link);
   await expect(viewer.getByText(WAITING)).toBeVisible();
-  await expect(host.getByText('1 espectador', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('1 espectador', { exact: true })).toBeVisible();
 
   await host.getByRole('button', { name: 'Compartilhar tela' }).click();
   await expect(host.getByText('Ao vivo')).toBeVisible();
   await expectVideoPlaying(viewer);
-  await expect(host.getByText('1 espectador', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('1 espectador', { exact: true })).toBeVisible();
   await expect(viewer.getByText('Esta transmissão está sem áudio.')).toBeVisible();
 });
 
@@ -31,14 +31,14 @@ test('2. viewer who joins during the broadcast receives the video', async ({ bro
 
   const second = await openViewer(browser, link);
   await expectVideoPlaying(second);
-  await expect(host.getByText('2 espectadores', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('2 espectadores', { exact: true })).toBeVisible();
 });
 
 test('3. a third viewer sees that the room is full', async ({ browser }) => {
   const { host, link } = await openHostRoom(browser);
   await openViewer(browser, link);
   await openViewer(browser, link);
-  await expect(host.getByText('2 espectadores', { exact: true })).toBeVisible();
+  await expect(host.getByLabel('2 espectadores', { exact: true })).toBeVisible();
   const third = await openViewer(browser, link);
   await expect(third.getByText('A sala está cheia. Tente novamente mais tarde.')).toBeVisible();
 });
