@@ -42,9 +42,20 @@ describe('startDisplayCapture', () => {
     const getDisplayMedia = vi.fn<(options: DisplayMediaStreamOptions) => Promise<MediaStream>>(
       async () => fakeStream(),
     );
-    await startDisplayCapture(getDisplayMedia);
+    await startDisplayCapture({}, getDisplayMedia);
     expect(getDisplayMedia).toHaveBeenCalledTimes(1);
     expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({ audio: true });
+  });
+
+  it('asks for screen only, without system audio, when sound is turned off', async () => {
+    const getDisplayMedia = vi.fn<(options: DisplayMediaStreamOptions) => Promise<MediaStream>>(
+      async () => fakeStream(),
+    );
+    await startDisplayCapture({ audio: false }, getDisplayMedia);
+    expect(getDisplayMedia.mock.calls[0]?.[0]).toMatchObject({
+      audio: false,
+      systemAudio: 'exclude',
+    });
   });
 
   it('retries with video only when the browser rejects the options', async () => {
@@ -52,14 +63,14 @@ describe('startDisplayCapture', () => {
       .fn()
       .mockRejectedValueOnce(new TypeError('audio not supported'))
       .mockResolvedValueOnce(fakeStream());
-    await startDisplayCapture(getDisplayMedia);
+    await startDisplayCapture({}, getDisplayMedia);
     expect(getDisplayMedia).toHaveBeenCalledTimes(2);
     expect(getDisplayMedia.mock.calls[1]?.[0]).toMatchObject({ audio: false });
   });
 
   it('does not ask again when the user cancels', async () => {
     const getDisplayMedia = vi.fn().mockRejectedValue(domError('NotAllowedError'));
-    await expect(startDisplayCapture(getDisplayMedia)).rejects.toThrow();
+    await expect(startDisplayCapture({}, getDisplayMedia)).rejects.toThrow();
     expect(getDisplayMedia).toHaveBeenCalledTimes(1);
   });
 });

@@ -20,6 +20,7 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - VP9 preferido no vídeo (melhor para texto e telas), com os outros codecs como reserva.
 - O anfitrião recria sozinho a conexão de um espectador que falha ou fica desconectado, até 3 vezes seguidas.
 - Se o navegador recusar o pedido de áudio, a tela é compartilhada só com vídeo em vez de falhar, e o aviso explica como incluir o som.
+- Enquanto a janela de compartilhamento não responde, dá para cancelar; depois de 8 segundos aparece a opção "Compartilhar sem som", que pede só o vídeo.
 
 ### Segurança e operação
 

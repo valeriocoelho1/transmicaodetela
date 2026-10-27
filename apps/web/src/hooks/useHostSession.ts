@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EndReason, RoomViewer } from '@app/shared';
+import { CAPTURE_STUCK_HINT_MS } from '../config';
 import { captureErrorMessage, startDisplayCapture } from '../lib/capture';
 import { clearHostToken, getHostToken } from '../lib/host-token';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
@@ -30,6 +31,7 @@ export function useHostSession(roomId: string, name: string) {
   const [audioMissing, setAudioMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasShared, setHasShared] = useState(false);
+  const [captureSlow, setCaptureSlow] = useState(false);
   const [endedReason, setEndedReason] = useState<HostEndedReason | null>(null);
 
   const stateRef = useRef<HostState>('connecting');
@@ -37,10 +39,12 @@ export function useHostSession(roomId: string, name: string) {
   const streamRef = useRef<MediaStream | null>(null);
   const nameRef = useRef(name);
   const joinedRef = useRef(false);
+  const attemptRef = useRef(0);
 
   const setState = useCallback((next: HostState) => {
     stateRef.current = next;
     setStateValue(next);
+    if (next !== 'starting') setCaptureSlow(false);
   }, []);
 
   const releaseStream = useCallback(() => {
@@ -158,35 +162,47 @@ export function useHostSession(roomId: string, name: string) {
     if (stateRef.current === 'live') setState('ready');
   }, [releaseStream, setState]);
 
-  const startSharing = useCallback(async () => {
-    const session = sessionRef.current;
-    if (!session || stateRef.current !== 'ready') return;
-    setError(null);
-    setState('starting');
-    const stillStarting = () => stateRef.current === 'starting';
-    let stream: MediaStream;
-    try {
-      stream = await startDisplayCapture();
-    } catch (captureError) {
-      if (stillStarting()) {
-        setError(captureErrorMessage(captureError));
-        setState('ready');
+  const startSharing = useCallback(
+    async ({ audio = true }: { audio?: boolean } = {}) => {
+      const session = sessionRef.current;
+      if (!session || stateRef.current !== 'ready') return;
+      setError(null);
+      setState('starting');
+      const attempt = ++attemptRef.current;
+      // A cancelled request can still resolve later; only the latest one may go live.
+      const stillStarting = () => stateRef.current === 'starting' && attemptRef.current === attempt;
+      setTimeout(() => {
+        if (stillStarting()) setCaptureSlow(true);
+      }, CAPTURE_STUCK_HINT_MS);
+      let stream: MediaStream;
+      try {
+        stream = await startDisplayCapture({ audio });
+      } catch (captureError) {
+        if (stillStarting()) {
+          setError(captureErrorMessage(captureError));
+          setState('ready');
+        }
+        return;
       }
-      return;
-    }
-    if (!stillStarting() || sessionRef.current !== session) {
-      stream.getTracks().forEach((track) => track.stop());
-      return;
-    }
-    streamRef.current = stream;
-    setPreviewStream(stream);
-    setHasShared(true);
-    setAudioMissing(stream.getAudioTracks().length === 0);
-    stream.getVideoTracks()[0]?.addEventListener('ended', stopSharing);
-    session.broadcaster.start(stream);
-    session.socket.emit('host:live', { live: true });
-    setState('live');
-  }, [setState, stopSharing]);
+      if (!stillStarting() || sessionRef.current !== session) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
+      setPreviewStream(stream);
+      setHasShared(true);
+      setAudioMissing(audio && stream.getAudioTracks().length === 0);
+      stream.getVideoTracks()[0]?.addEventListener('ended', stopSharing);
+      session.broadcaster.start(stream);
+      session.socket.emit('host:live', { live: true });
+      setState('live');
+    },
+    [setState, stopSharing],
+  );
+
+  const cancelStarting = useCallback(() => {
+    if (stateRef.current === 'starting') setState('ready');
+  }, [setState]);
 
   const endRoom = useCallback(() => {
     const session = sessionRef.current;
@@ -204,8 +220,10 @@ export function useHostSession(roomId: string, name: string) {
     audioMissing,
     error,
     hasShared,
+    captureSlow,
     endedReason,
     startSharing,
+    cancelStarting,
     stopSharing,
     endRoom,
   };

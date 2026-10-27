@@ -14,6 +14,7 @@ import { StatusPill } from '../components/StatusPill';
 import { useDisplayName } from '../hooks/useDisplayName';
 import { useHostSession } from '../hooks/useHostSession';
 import {
+  CAPTURE_STUCK_MESSAGE,
   isDisplayCaptureSupported,
   NO_AUDIO_SHARED_MESSAGE,
   UNSUPPORTED_BROWSER_MESSAGE,
@@ -161,6 +162,23 @@ export function HostPage() {
                 {session.hasShared ? 'Compartilhar novamente' : 'Compartilhar tela'}
               </Button>
             )}
+            {state === 'starting' && (
+              <Button variant="secondary" icon="close" onClick={session.cancelStarting}>
+                Cancelar
+              </Button>
+            )}
+            {session.captureSlow && (
+              <Button
+                variant="secondary"
+                icon="mute"
+                onClick={() => {
+                  session.cancelStarting();
+                  void session.startSharing({ audio: false });
+                }}
+              >
+                Compartilhar sem som
+              </Button>
+            )}
             <Button variant="danger" icon="close" onClick={session.endRoom} disabled={!inRoom}>
               Encerrar sala
             </Button>
@@ -170,6 +188,11 @@ export function HostPage() {
             {session.error && (
               <div aria-live="polite">
                 <Callout tone="error">{session.error}</Callout>
+              </div>
+            )}
+            {session.captureSlow && (
+              <div aria-live="polite">
+                <Callout tone="info">{CAPTURE_STUCK_MESSAGE}</Callout>
               </div>
             )}
             {session.audioMissing && <Callout tone="info">{NO_AUDIO_SHARED_MESSAGE}</Callout>}

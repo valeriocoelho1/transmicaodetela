@@ -26,10 +26,13 @@ export function captureErrorMessage(error: unknown): string {
   }
 }
 
+export const CAPTURE_STUCK_MESSAGE =
+  'A janela de compartilhamento não abriu ou travou? Tente sem som. No Mac, confira também se o Chrome tem permissão de gravação de tela e de áudio do sistema em Ajustes do Sistema, Privacidade e Segurança.';
+
 interface DisplayCaptureHints {
   selfBrowserSurface: 'exclude';
   surfaceSwitching: 'include';
-  systemAudio: 'include';
+  systemAudio: 'include' | 'exclude';
 }
 
 const video: MediaTrackConstraints = {
@@ -42,15 +45,16 @@ const video: MediaTrackConstraints = {
 const OPTION_ERRORS = ['TypeError', 'NotSupportedError', 'OverconstrainedError'];
 
 export async function startDisplayCapture(
+  { audio = true }: { audio?: boolean } = {},
   getDisplayMedia = (options: DisplayMediaStreamOptions) =>
     navigator.mediaDevices.getDisplayMedia(options),
 ): Promise<MediaStream> {
   const options: DisplayMediaStreamOptions & DisplayCaptureHints = {
     video,
-    audio: true,
+    audio,
     selfBrowserSurface: 'exclude',
     surfaceSwitching: 'include',
-    systemAudio: 'include',
+    systemAudio: audio ? 'include' : 'exclude',
   };
   let stream: MediaStream;
   try {
