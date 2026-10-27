@@ -1,6 +1,6 @@
-# Compartilhar tela
+# Transmitir tela
 
-Site para transmitir a tela do computador por link. O anfitrião cria uma sala, compartilha a tela pelo navegador e envia o link; quem abrir o link assiste pelo navegador, sem login e sem instalar nada. O vídeo vai por WebRTC, direto entre os navegadores. Este repositório contém o MVP.
+Site para transmitir a tela do computador por link. O anfitrião cria uma sala, compartilha a tela pelo navegador e envia o link; quem abrir o link assiste pelo navegador, sem login e sem instalar nada. O vídeo vai por WebRTC, direto entre os navegadores. Este repositório contém o MVP. Domínio de produção: `transmitirtela.com.br`.
 
 ## Arquitetura
 
@@ -59,7 +59,7 @@ Todas têm padrão, exceto as marcadas. A configuração é validada na partida;
 | `PORT`                        | `3000`                         | Porta HTTP                                                                              |
 | `ALLOWED_ORIGINS`             | `http://localhost:5173`        | Origens permitidas (CORS e Socket.IO), separadas por vírgula. Obrigatória em produção   |
 | `TRUST_PROXY`                 | `0`                            | Número de proxies confiáveis à frente da API (1 atrás do Caddy)                         |
-| `MAX_VIEWERS_PER_ROOM`        | `5`                            | Espectadores simultâneos por sala                                                       |
+| `MAX_VIEWERS_PER_ROOM`        | `10`                           | Espectadores simultâneos por sala                                                       |
 | `MAX_ROOMS`                   | `50`                           | Salas simultâneas no servidor                                                           |
 | `ROOM_HOST_GRACE_MS`          | `60000`                        | Tempo para o anfitrião voltar antes de a sala ser encerrada                             |
 | `ROOM_UNUSED_TTL_MS`          | `900000`                       | Sala em que o anfitrião nunca entrou é apagada após esse tempo                          |
@@ -77,7 +77,7 @@ Em produção, o `docker-compose.prod.yml` monta essas variáveis a partir do `.
 
 ## Limites do MVP
 
-- **Até 5 espectadores por sala.** O anfitrião envia uma cópia do vídeo para cada espectador (cerca de 2 Mbps cada), então o upload dele limita a sala.
+- **Até 10 espectadores por sala.** O anfitrião envia uma cópia do vídeo para cada espectador (cerca de 2 Mbps cada, uns 20 Mbps com a sala cheia), então o upload dele limita a sala.
 - **Sem senha:** quem tem o link entra. Não divulgue o link publicamente.
 - **Sem moderação** nem denúncia.
 - **Salas em memória:** reiniciar a API encerra todas as salas.

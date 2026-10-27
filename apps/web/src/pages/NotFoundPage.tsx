@@ -6,7 +6,7 @@ import { StateMessage } from '../components/StateMessage';
 export function NotFoundPage() {
   return (
     <Layout width="narrow">
-      <h1 className="page-title">Compartilhar tela</h1>
+      <h1 className="page-title">Transmitir tela</h1>
       <div className="card">
         <StateMessage icon="alert" message="Página não encontrada.">
           <Link className="btn btn--primary" to="/">

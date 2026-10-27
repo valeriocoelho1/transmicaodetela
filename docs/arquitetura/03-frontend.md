@@ -177,7 +177,7 @@ Expõe: `state`, `stream`, `hasAudio`, `endedReason`, `retry()`.
 
 | Onde | Texto |
 | --- | --- |
-| Início, título | Compartilhar tela |
+| Início, título | Transmitir tela |
 | Início, descrição | Crie uma sala, compartilhe a tela do computador e envie o link. Quem tiver o link assiste pelo navegador, sem cadastro. |
 | Início, aviso | A transmissão é direta entre navegadores: o anfitrião e os espectadores podem ver o endereço IP uns dos outros. |
 | Início, botão | Criar sala (durante: Criando sala…) |

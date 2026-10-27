@@ -6,6 +6,8 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 
 ### Interface
 
+- O site passa a se chamar Transmitir tela (domínio `transmitirtela.com.br`).
+- Salas com até 10 espectadores por padrão (`MAX_VIEWERS_PER_ROOM`), no lugar de 5.
 - Landing page nova em pixel art, com "Como funciona", perguntas frequentes e "Quer contribuir?".
 - Sala do anfitrião, espectador e 404 no mesmo visual, com moldura de TV e lugares ocupados.
 - Fontes Tiny5 e Rubik servidas pelo próprio site.

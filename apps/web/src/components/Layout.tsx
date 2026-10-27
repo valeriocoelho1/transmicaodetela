@@ -16,7 +16,7 @@ export function LandingLayout({ children }: { children: ReactNode }) {
       <header className="hud pixel-box">
         <Link to="/" className="brand">
           <PixelSprite name="tv" size={30} />
-          <span>Compartilhar tela</span>
+          <span>Transmitir tela</span>
         </Link>
         <nav className="hud__nav" aria-label="Principal">
           {sectionLinks.map((link) => (
@@ -32,7 +32,7 @@ export function LandingLayout({ children }: { children: ReactNode }) {
       </header>
       <main>{children}</main>
       <footer className="site-footer">
-        <span className="site-footer__brand">Compartilhar tela</span>
+        <span className="site-footer__brand">Transmitir tela</span>
         <p>Vídeo direto entre navegadores, sem cadastro e sem instalar nada.</p>
       </footer>
     </div>
