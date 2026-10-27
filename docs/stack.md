@@ -19,6 +19,7 @@ Tudo em TypeScript. Um único repositório (monorepo pnpm). Esta é a lista fech
 | Empacotamento | Docker + Docker Compose | Produção em uma VM |
 | Testes | Jest (API), Vitest (shared e web), Playwright (e2e) | Unitário, integração e ponta a ponta |
 | Qualidade | ESLint (flat config) + typescript-eslint + Prettier | Lint e formatação |
+| CI e deploy | GitHub Actions + timer systemd na VM | Verificações a cada push; deploy da branch `production` |
 
 ## Por que cada escolha
 
@@ -49,7 +50,7 @@ Para IDs e tokens use `node:crypto`. Não use `nanoid`: as versões recentes sã
 
 ## Fora da stack do MVP
 
-Banco de dados e ORM, Redis, Tailwind ou biblioteca de componentes, gerenciador de estado global, Next.js, SFU (LiveKit, mediasoup, Janus), bibliotecas de WebRTC de terceiros (como simple-peer), CI/CD, Kubernetes, serverless.
+Banco de dados e ORM, Redis, Tailwind ou biblioteca de componentes, gerenciador de estado global, Next.js, SFU (LiveKit, mediasoup, Janus), bibliotecas de WebRTC de terceiros (como simple-peer), Kubernetes, serverless.
 
 ## Versões e ambiente
 

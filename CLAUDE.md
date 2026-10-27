@@ -31,6 +31,7 @@ Site para transmitir a tela do computador por link. Uma pessoa (o **anfitrião**
 - `apps/web` (`@app/web`): **React + Vite**, React Router, `socket.io-client`, CSS simples. WebRTC com as APIs nativas do navegador.
 - `e2e` (`@app/e2e`): **Playwright**.
 - Produção: **Docker Compose** com Caddy (HTTPS + arquivos estáticos + proxy), API e coturn (STUN/TURN).
+- CI: **GitHub Actions** roda as verificações e move a branch `production`; um timer systemd na VM faz o deploy dela.
 
 ## Estrutura do repositório
 
@@ -75,7 +76,7 @@ pnpm test:e2e       # Playwright
 
 ## Fora do MVP (proibido implementar)
 
-Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, mediasoup, Janus), gravação, aplicativo desktop, anfitrião no celular, mais de um anfitrião por sala, painel de métricas ou saúde da live, perfis de qualidade escolhidos pelo usuário, traduções além de pt-BR, analytics, TURN sobre TLS na porta 443, CI/CD.
+Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, mediasoup, Janus), gravação, aplicativo desktop, anfitrião no celular, mais de um anfitrião por sala, painel de métricas ou saúde da live, perfis de qualidade escolhidos pelo usuário, traduções além de pt-BR, analytics, TURN sobre TLS na porta 443.
 
 ## Definição de pronto do MVP
 

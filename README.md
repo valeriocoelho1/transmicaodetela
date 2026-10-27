@@ -145,7 +145,7 @@ O Caddy emite e renova o certificado HTTPS sozinho. O coturn roda com `network_m
 
 ## Fora do MVP
 
-Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, mediasoup, Janus), gravação, aplicativo desktop, anfitrião no celular, mais de um anfitrião por sala, painel de métricas ou saúde da live, perfis de qualidade escolhidos pelo usuário, traduções além de pt-BR, analytics, TURN sobre TLS na porta 443, CI/CD.
+Senha de sala, chat, contas e login, banco de dados, Redis, SFU (LiveKit, mediasoup, Janus), gravação, aplicativo desktop, anfitrião no celular, mais de um anfitrião por sala, painel de métricas ou saúde da live, perfis de qualidade escolhidos pelo usuário, traduções além de pt-BR, analytics, TURN sobre TLS na porta 443.
 
 ## Estrutura
 

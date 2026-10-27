@@ -223,3 +223,18 @@ Liberar no firewall da nuvem (security group). O firewall do sistema operacional
 - Ver logs: `docker compose -f docker-compose.prod.yml logs -f --tail=100 api`.
 - Encerrar todas as salas de emergência: `docker compose -f docker-compose.prod.yml restart api`.
 - Procedimento completo (conta na nuvem, VM, domínio, DNS, testes entre redes) está no guia **por fora** do repositório.
+
+## Deploy automático
+
+Cada push na `main` (e na `dev`, e em pull requests) roda o workflow `.github/workflows/ci.yml`: `typecheck`, `lint`, `format:check`, `test` e `build`. Os e2e ficam de fora. Se tudo passar num push na `main`, o workflow aponta a branch `production` para aquele commit.
+
+A VM não recebe conexão do GitHub. Um timer systemd (`deploy/systemd/`) roda `deploy/auto-deploy.sh` a cada 2 minutos: o script busca `production` e, se ela andou, faz `git merge --ff-only`, `docker compose -f docker-compose.prod.yml up -d --build` e limpa as imagens antigas. Assim nenhum segredo fica no GitHub e o SSH continua fechado para o resto da internet.
+
+- Um commit com verificação falhando nunca chega à `production`.
+- Todo deploy reinicia a API e encerra as salas abertas.
+- Se o build falhar na VM, o checkout já avançou e o script não tenta de novo; corrija com um novo commit ou rode `up -d --build` na mão. O erro aparece em `journalctl -u transmicaodetela-deploy`.
+- Instalação, uma vez na VM, a partir da pasta do projeto:
+  - `git fetch origin production && git checkout -B production origin/production`
+  - `sudo cp deploy/systemd/transmicaodetela-deploy.* /etc/systemd/system/`
+  - `sudo systemctl daemon-reload && sudo systemctl enable --now transmicaodetela-deploy.timer`
+- Os arquivos do systemd supõem o usuário `ubuntu` e a pasta `/home/ubuntu/transmicaodetela`; ajuste se a VM for outra.

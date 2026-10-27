@@ -43,6 +43,7 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - `multer` forçado para 2.5.0 ou mais (GHSA-q7qp-rjg7-q26m).
 - Imagens Docker com a tag `APP_VERSION`, para rollback sem rebuild.
 - `www.$DOMAIN` redireciona (301) para `https://$DOMAIN`, mantendo caminho e parâmetros.
+- CI no GitHub Actions e deploy automático: cada push na `main` que passa nas verificações vai para a branch `production`, que a VM publica sozinha em até 2 minutos.
 
 ## 0.1.0
 
