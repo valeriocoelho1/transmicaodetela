@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Icon, type IconName } from '../components/Icon';
 import { Layout } from '../components/Layout';
@@ -54,30 +52,6 @@ export function ViewerPage() {
   const busy = current === 'connecting' || current === 'reconnecting' || current === 'waiting';
   const showList = !isFinal && session.selfId !== null;
 
-  // On wide screens the list opens over the video from the top bar, so the stage keeps the full
-  // width. On phones it sits below the video.
-  const [listOpen, setListOpen] = useState(false);
-  const listRef = useRef<HTMLElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!listOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setListOpen(false);
-    };
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!listRef.current?.contains(target) && !toggleRef.current?.contains(target)) {
-        setListOpen(false);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
-    };
-  }, [listOpen]);
-
   return (
     <Layout fill>
       <RoomBar name={name} onRename={rename}>
@@ -93,26 +67,8 @@ export function ViewerPage() {
           ) : (
             <StatusPill tone="live" label="Ao vivo" />
           ))}
-        {showList && (
-          <button
-            ref={toggleRef}
-            type="button"
-            className="viewers-toggle"
-            aria-expanded={listOpen}
-            aria-controls="viewer-list-panel"
-            onClick={() => setListOpen((open) => !open)}
-          >
-            <span className="viewers-toggle__avatars" aria-hidden="true">
-              {session.viewers.slice(0, 3).map((viewer) => (
-                <Avatar key={viewer.id} name={viewer.name} size={26} />
-              ))}
-            </span>
-            <span>Espectadores</span>
-            <span className="viewers-toggle__count">{session.viewers.length}</span>
-          </button>
-        )}
       </RoomBar>
-      <div className={showList ? 'room-grid room-grid--viewer' : 'room-grid room-grid--single'}>
+      <div className={showList ? 'room-grid' : 'room-grid room-grid--single'}>
         {watching ? (
           <RemoteVideo stream={stream} hasAudio={session.hasAudio} />
         ) : (
@@ -148,13 +104,7 @@ export function ViewerPage() {
           </div>
         )}
         {showList && (
-          <aside
-            id="viewer-list-panel"
-            ref={listRef}
-            className={
-              listOpen ? 'room-side room-side--popover is-open' : 'room-side room-side--popover'
-            }
-          >
+          <aside className="room-side">
             <ViewerList
               viewers={session.viewers}
               maxViewers={session.maxViewers}
