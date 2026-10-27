@@ -23,6 +23,7 @@ const envSchema = z
     MAX_VIEWERS_PER_ROOM: positiveInt(5),
     MAX_ROOMS: positiveInt(50),
     ROOM_HOST_GRACE_MS: positiveInt(60_000),
+    VIEWER_GRACE_MS: positiveInt(20_000),
     ROOM_UNUSED_TTL_MS: positiveInt(900_000),
     ROOM_MAX_AGE_MS: positiveInt(43_200_000),
     SWEEP_INTERVAL_MS: positiveInt(30_000),
@@ -58,6 +59,7 @@ export interface AppConfig {
   maxViewersPerRoom: number;
   maxRooms: number;
   roomHostGraceMs: number;
+  viewerGraceMs: number;
   roomUnusedTtlMs: number;
   roomMaxAgeMs: number;
   sweepIntervalMs: number;
@@ -96,6 +98,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     maxViewersPerRoom: e.MAX_VIEWERS_PER_ROOM,
     maxRooms: e.MAX_ROOMS,
     roomHostGraceMs: e.ROOM_HOST_GRACE_MS,
+    viewerGraceMs: e.VIEWER_GRACE_MS,
     roomUnusedTtlMs: e.ROOM_UNUSED_TTL_MS,
     roomMaxAgeMs: e.ROOM_MAX_AGE_MS,
     sweepIntervalMs: e.SWEEP_INTERVAL_MS,

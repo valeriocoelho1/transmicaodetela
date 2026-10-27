@@ -4,9 +4,12 @@ import { type EndReason, ROOM_ID_REGEX } from '@app/shared';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
 
 export interface Viewer {
-  socketId: string;
+  // null while the viewer is away; the seat is kept for VIEWER_GRACE_MS.
+  socketId: string | null;
   publicId: string;
   name: string;
+  resumeTokenHash: Buffer;
+  disconnectedAt: number | null;
 }
 
 export interface Room {
@@ -31,7 +34,8 @@ export class RoomLimitReachedError extends Error {
 }
 
 export type AddViewerResult =
-  { ok: true; viewerId: string } | { ok: false; error: 'ROOM_NOT_FOUND' | 'ROOM_FULL' };
+  | { ok: true; viewerId: string; resumeToken: string }
+  | { ok: false; error: 'ROOM_NOT_FOUND' | 'ROOM_FULL' };
 
 function sha256(value: string): Buffer {
   return createHash('sha256').update(value).digest();
@@ -93,12 +97,14 @@ export class RoomsService {
     return { previousSocketId: previous !== socketId ? previous : null };
   }
 
-  detachHost(roomId: string, socketId: string): boolean {
+  // A host that left on purpose stops the broadcast; one that lost the connection may still be
+  // streaming to viewers directly, so the room stays live until it comes back or times out.
+  detachHost(roomId: string, socketId: string, onPurpose: boolean): boolean {
     const room = this.get(roomId);
     if (!room || room.hostSocketId !== socketId) return false;
     room.hostSocketId = null;
     room.hostDisconnectedAt = this.now();
-    room.live = false;
+    if (onPurpose) room.live = false;
     return true;
   }
 
@@ -115,8 +121,49 @@ export class RoomsService {
     if (room.viewers.size >= this.config.maxViewersPerRoom)
       return { ok: false, error: 'ROOM_FULL' };
     const viewerId = randomUUID();
-    room.viewers.set(viewerId, { socketId, publicId: randomBytes(6).toString('base64url'), name });
-    return { ok: true, viewerId };
+    const resumeToken = randomBytes(32).toString('base64url');
+    room.viewers.set(viewerId, {
+      socketId,
+      publicId: randomBytes(6).toString('base64url'),
+      name,
+      resumeTokenHash: sha256(resumeToken),
+      disconnectedAt: null,
+    });
+    return { ok: true, viewerId, resumeToken };
+  }
+
+  // Gives the seat back to a viewer that proves it holds the resume token, even in a full room.
+  // The token is rotated on every resume.
+  resumeViewer(
+    roomId: string,
+    viewerId: string,
+    token: string,
+    socketId: string,
+  ): { previousSocketId: string | null; resumeToken: string } | null {
+    const viewer = this.get(roomId)?.viewers.get(viewerId);
+    if (!viewer || !timingSafeEqual(sha256(token), viewer.resumeTokenHash)) return null;
+    const previousSocketId = viewer.socketId !== socketId ? viewer.socketId : null;
+    const resumeToken = randomBytes(32).toString('base64url');
+    viewer.socketId = socketId;
+    viewer.disconnectedAt = null;
+    viewer.resumeTokenHash = sha256(resumeToken);
+    return { previousSocketId, resumeToken };
+  }
+
+  detachViewer(roomId: string, viewerId: string, socketId: string): number | null {
+    const viewer = this.get(roomId)?.viewers.get(viewerId);
+    if (!viewer || viewer.socketId !== socketId) return null;
+    viewer.socketId = null;
+    viewer.disconnectedAt = this.now();
+    return viewer.disconnectedAt;
+  }
+
+  // Removes a viewer that is still away since `disconnectedAt`; false if it came back.
+  expireViewer(roomId: string, viewerId: string, disconnectedAt: number): boolean {
+    const room = this.get(roomId);
+    const viewer = room?.viewers.get(viewerId);
+    if (!room || !viewer || viewer.disconnectedAt !== disconnectedAt) return false;
+    return room.viewers.delete(viewerId);
   }
 
   renameHost(roomId: string, name: string): void {
@@ -150,14 +197,22 @@ export class RoomsService {
   }
 
   viewerSocketId(roomId: string, viewerId: string): string | undefined {
-    return this.get(roomId)?.viewers.get(viewerId)?.socketId;
+    return this.get(roomId)?.viewers.get(viewerId)?.socketId ?? undefined;
+  }
+
+  viewerSocketIds(roomId: string): string[] {
+    const ids: string[] = [];
+    for (const { socketId } of this.get(roomId)?.viewers.values() ?? []) {
+      if (socketId) ids.push(socketId);
+    }
+    return ids;
   }
 
   end(roomId: string): string[] {
-    const room = this.get(roomId);
-    if (!room) return [];
+    if (!this.get(roomId)) return [];
+    const socketIds = this.viewerSocketIds(roomId);
     this.rooms.delete(roomId);
-    return [...room.viewers.values()].map((viewer) => viewer.socketId);
+    return socketIds;
   }
 
   findExpired(now: number = this.now()): { roomId: string; reason: EndReason }[] {

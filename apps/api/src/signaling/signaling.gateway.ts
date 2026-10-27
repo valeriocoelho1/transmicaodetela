@@ -33,6 +33,8 @@ interface SocketData {
   role?: 'host' | 'viewer';
   roomId?: string;
   viewerId?: string;
+  // Set when the client itself closed the connection (left the page) instead of losing it.
+  leftOnPurpose?: boolean;
 }
 
 type AppServer = Server<ClientToServerEvents, ServerToClientEvents, object, SocketData>;
@@ -73,6 +75,9 @@ export class SignalingGateway
       socket.disconnect(true);
       return;
     }
+    socket.on('disconnecting', (reason) => {
+      if (reason === 'client namespace disconnect') socket.data.leftOnPurpose = true;
+    });
     let windowStart = this.now();
     let count = 0;
     socket.use((_packet, next) => {
@@ -104,7 +109,7 @@ export class SignalingGateway
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (!this.rooms.verifyHost(roomId, hostToken)) return { ok: false, error: 'INVALID_TOKEN' };
 
-    if (socket.data.roomId) this.leave(socket);
+    if (socket.data.roomId) this.leave(socket, true);
     const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name);
     socket.data = { role: 'host', roomId };
     if (previousSocketId) {
@@ -117,7 +122,7 @@ export class SignalingGateway
       this.logger.log(`Room ${shortId(roomId)} host replaced`);
     }
     this.logger.log(`Room ${shortId(roomId)} host joined`);
-    this.emitHostName(roomId);
+    this.emitHost(roomId);
     return {
       ok: true,
       iceServers: this.ice.iceServers(),
@@ -151,27 +156,51 @@ export class SignalingGateway
     const { roomId, name } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
 
-    if (socket.data.roomId) this.leave(socket);
-    const added = this.rooms.addViewer(roomId, socket.id, name);
-    if (!added.ok) return added;
-    socket.data = { role: 'viewer', roomId, viewerId: added.viewerId };
+    if (socket.data.roomId) this.leave(socket, true);
+    const { resume } = parsed.data;
+    const resumed = resume
+      ? this.rooms.resumeViewer(roomId, resume.viewerId, resume.token, socket.id)
+      : null;
+    let viewerId: string;
+    let resumeToken: string;
+    if (resume && resumed) {
+      viewerId = resume.viewerId;
+      resumeToken = resumed.resumeToken;
+      const previous = resumed.previousSocketId ? this.socket(resumed.previousSocketId) : undefined;
+      if (previous) {
+        previous.data = {};
+        previous.disconnect(true);
+      }
+    } else {
+      const added = this.rooms.addViewer(roomId, socket.id, name);
+      if (!added.ok) return added;
+      viewerId = added.viewerId;
+      resumeToken = added.resumeToken;
+    }
+    socket.data = { role: 'viewer', roomId, viewerId };
 
     const room = this.rooms.get(roomId);
-    const self = room?.viewers.get(added.viewerId);
-    if (room?.hostSocketId) {
-      this.server.to(room.hostSocketId).emit('viewer:joined', {
-        viewerId: added.viewerId,
-        name: self?.name ?? '',
-      });
+    const self = room?.viewers.get(viewerId);
+    // A resumed viewer whose video connection survived needs nothing from the host.
+    if (room?.hostSocketId && (!resumed || resume?.needsOffer)) {
+      this.server.to(room.hostSocketId).emit('viewer:joined', { viewerId, name: self?.name ?? '' });
     }
-    this.emitViewerList(roomId, socket.id);
-    this.logger.log(`Room ${shortId(roomId)} viewer joined (viewers: ${room?.viewers.size ?? 0})`);
+    if (!resumed) {
+      this.emitViewerList(roomId, socket.id);
+      this.logger.log(
+        `Room ${shortId(roomId)} viewer joined (viewers: ${room?.viewers.size ?? 0})`,
+      );
+    } else {
+      this.logger.log(`Room ${shortId(roomId)} viewer resumed`);
+    }
     return {
       ok: true,
-      viewerId: added.viewerId,
+      viewerId,
+      resumeToken,
+      resumed: resumed !== null,
       iceServers: this.ice.iceServers(),
       live: room?.live ?? false,
-      hostName: room?.hostName ?? '',
+      host: { name: room?.hostName ?? '', online: Boolean(room?.hostSocketId) },
       selfId: self?.publicId ?? '',
       viewers: this.rooms.publicViewerList(roomId),
       maxViewers: this.config.maxViewersPerRoom,
@@ -188,7 +217,7 @@ export class SignalingGateway
     const { name } = parsed.data;
     if (hostRoomId) {
       this.rooms.renameHost(hostRoomId, name);
-      this.emitHostName(hostRoomId);
+      this.emitHost(hostRoomId);
       return;
     }
     if (viewer && this.rooms.renameViewer(viewer.roomId, viewer.viewerId, name)) {
@@ -270,21 +299,40 @@ export class SignalingGateway
     this.logger.log(`Room ${shortId(roomId)} ended (${reason}, ${this.rooms.count} active)`);
   }
 
-  private leave(socket: AppSocket): void {
+  // A lost connection keeps the seat and the video connection, which runs between the browsers,
+  // so the client can come back without the video stopping. Leaving on purpose ends it now.
+  private leave(socket: AppSocket, onPurpose = socket.data.leftOnPurpose ?? false): void {
     const { role, roomId, viewerId } = socket.data;
     socket.data = {};
     if (!roomId) return;
     if (role === 'host') {
-      if (this.rooms.detachHost(roomId, socket.id)) {
-        this.emitToViewers(roomId, 'room:status', { live: false });
+      if (this.rooms.detachHost(roomId, socket.id, onPurpose)) {
+        if (onPurpose) this.emitToViewers(roomId, 'room:status', { live: false });
+        this.emitHost(roomId);
         this.logger.log(`Room ${shortId(roomId)} host disconnected`);
       }
-    } else if (role === 'viewer' && viewerId && this.rooms.removeViewer(roomId, viewerId)) {
-      const room = this.rooms.get(roomId);
-      if (room?.hostSocketId) this.server.to(room.hostSocketId).emit('viewer:left', { viewerId });
-      this.emitViewerList(roomId);
-      this.logger.log(`Room ${shortId(roomId)} viewer left (viewers: ${room?.viewers.size ?? 0})`);
+      return;
     }
+    if (role !== 'viewer' || !viewerId) return;
+    if (onPurpose) {
+      if (this.rooms.removeViewer(roomId, viewerId)) this.viewerLeft(roomId, viewerId);
+      return;
+    }
+    const disconnectedAt = this.rooms.detachViewer(roomId, viewerId, socket.id);
+    if (disconnectedAt === null) return;
+    this.logger.log(`Room ${shortId(roomId)} viewer away`);
+    setTimeout(() => {
+      if (this.rooms.expireViewer(roomId, viewerId, disconnectedAt)) {
+        this.viewerLeft(roomId, viewerId);
+      }
+    }, this.config.viewerGraceMs).unref();
+  }
+
+  private viewerLeft(roomId: string, viewerId: string): void {
+    const room = this.rooms.get(roomId);
+    if (room?.hostSocketId) this.server.to(room.hostSocketId).emit('viewer:left', { viewerId });
+    this.emitViewerList(roomId);
+    this.logger.log(`Room ${shortId(roomId)} viewer left (viewers: ${room?.viewers.size ?? 0})`);
   }
 
   private hostRoom(socket: AppSocket): string | undefined {
@@ -302,25 +350,24 @@ export class SignalingGateway
   }
 
   private emitToViewers(roomId: string, event: 'room:status', payload: { live: boolean }): void {
-    for (const { socketId } of this.rooms.get(roomId)?.viewers.values() ?? []) {
+    for (const socketId of this.rooms.viewerSocketIds(roomId)) {
       this.server.to(socketId).emit(event, payload);
     }
   }
 
   private emitViewerList(roomId: string, exceptSocketId?: string): void {
-    const room = this.rooms.get(roomId);
-    if (!room) return;
     const viewers = this.rooms.publicViewerList(roomId);
-    for (const { socketId } of room.viewers.values()) {
+    for (const socketId of this.rooms.viewerSocketIds(roomId)) {
       if (socketId !== exceptSocketId) this.server.to(socketId).emit('room:viewers', { viewers });
     }
   }
 
-  private emitHostName(roomId: string): void {
+  private emitHost(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
-    for (const { socketId } of room.viewers.values()) {
-      this.server.to(socketId).emit('room:host-name', { name: room.hostName });
+    const host = { name: room.hostName, online: room.hostSocketId !== null };
+    for (const socketId of this.rooms.viewerSocketIds(roomId)) {
+      this.server.to(socketId).emit('room:host', host);
     }
   }
 

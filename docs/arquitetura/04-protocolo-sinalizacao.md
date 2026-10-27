@@ -15,7 +15,7 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 | `host:join` | anfitrião | `{ roomId, hostToken, name? }` | `{ ok: true, iceServers, viewers: { viewerId, name }[], maxViewers } ` ou `{ ok: false, error }` |
 | `host:live` | anfitrião | `{ live: boolean }` | nenhuma |
 | `host:end` | anfitrião | nenhum | nenhuma |
-| `viewer:join` | espectador | `{ roomId, name? }` | `{ ok: true, viewerId, iceServers, live, hostName, selfId, viewers: { id, name }[], maxViewers } ` ou `{ ok: false, error }` |
+| `viewer:join` | espectador | `{ roomId, name?, resume?: { viewerId, token, needsOffer } }` | `{ ok: true, viewerId, resumeToken, resumed, iceServers, live, host: { name, online }, selfId, viewers: { id, name }[], maxViewers } ` ou `{ ok: false, error }` |
 | `user:rename` | ambos | `{ name }` | nenhuma |
 | `signal:offer` | anfitrião | `{ viewerId, sdp }` | nenhuma |
 | `signal:answer` | espectador | `{ sdp }` | nenhuma |
@@ -34,7 +34,7 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 | `signal:ice` | anfitrião | `{ viewerId, candidate }` | Repassa candidato do espectador |
 | `room:host-replaced` | anfitrião antigo | nenhum | Outro socket assumiu como anfitrião. O servidor desconecta este socket em seguida |
 | `room:status` | espectadores | `{ live: boolean }` | Anfitrião começou ou parou de transmitir, ou ficou offline |
-| `room:host-name` | espectadores | `{ name }` | Anfitrião entrou ou trocou de nome |
+| `room:host` | espectadores | `{ name, online }` | Anfitrião entrou, caiu, saiu ou trocou de nome |
 | `room:viewers` | espectadores | `{ viewers: { id, name }[] }` | Um espectador entrou, saiu ou trocou de nome (quem acabou de entrar recebe a lista no `ack`) |
 | `signal:offer` | espectador | `{ sdp }` | Repassa a oferta do anfitrião |
 | `signal:ice` | espectador | `{ candidate }` | Repassa candidato do anfitrião |
@@ -86,19 +86,21 @@ Também exporte em `@app/shared`: o tipo `Ack<T>` (`{ ok: true } & T | { ok: fal
 6. **`signal:offer`.** Só anfitrião, e `viewerId` precisa existir na sala. Repassa ao socket do espectador. Se não existir, descarta.
 7. **`signal:answer`.** Só espectador. Repassa ao anfitrião incluindo o `viewerId` do remetente (que o servidor conhece; o cliente nunca informa).
 8. **`signal:ice`.** Do anfitrião, repassa ao `viewerId` indicado. Do espectador, repassa ao anfitrião com o `viewerId` do remetente.
-9. **Anfitrião desconecta.** `live = false`, envia `room:status { live: false }`, mantém a sala por `ROOM_HOST_GRACE_MS`. Se ele voltar com o token, a sala segue. Se não, a varredura encerra com `HOST_TIMEOUT`.
-10. **Espectador desconecta.** Remove o espectador e envia `viewer:left` ao anfitrião.
-11. **Nomes.** `name` é opcional no `join` (padrão `Anfitrião` ou `Espectador`), passa por `trim`, tem de 1 a 32 caracteres e não aceita caracteres de controle. `user:rename` do anfitrião vai para os espectadores como `room:host-name`; o do espectador vai para o anfitrião como `viewer:renamed`. Nomes não aparecem nos logs. Os espectadores se veem pelo `id` público (`selfId` é o seu), gerado à parte e inútil para sinalização; o `viewerId` só vai para o anfitrião.
-12. **Limite de taxa.** Mais de `SOCKET_RATE_LIMIT_EVENTS` eventos em `SOCKET_RATE_LIMIT_WINDOW_MS` desconecta o socket.
+9. **Anfitrião desconecta.** Os espectadores recebem `room:host { online: false }` e a sala é mantida por `ROOM_HOST_GRACE_MS`. Se ele saiu de propósito (o cliente fechou o socket, motivo `client namespace disconnect`), também `live = false` e `room:status { live: false }`. Se só perdeu a conexão, a sala continua `live`: o vídeo vai direto entre os navegadores e pode seguir. Se ele voltar com o token, a sala segue. Se não, a varredura encerra com `HOST_TIMEOUT`.
+10. **Espectador desconecta.** Se saiu de propósito, é removido na hora e o anfitrião recebe `viewer:left`. Se perdeu a conexão, a vaga fica guardada por `VIEWER_GRACE_MS` (padrão 20 s), sem avisar o anfitrião, e só então é removida com `viewer:left`.
+11. **Retomada.** O `ack` do `viewer:join` traz um `resumeToken` aleatório (32 bytes), guardado no servidor só como `sha256`. Ao reconectar, o espectador manda `resume { viewerId, token, needsOffer }`. Com o token certo, recebe a mesma vaga (mesmo com a sala cheia), um token novo e `resumed: true`; um socket antigo do mesmo espectador é desconectado. Se `needsOffer` for `true` (o vídeo dele caiu), o anfitrião recebe `viewer:joined` de novo e manda outra oferta. Token errado ou vaga expirada viram um `join` comum. O token nunca vai para log nem para a URL.
+12. **Nomes.** `name` é opcional no `join` (padrão `Anfitrião` ou `Espectador`), passa por `trim`, tem de 1 a 32 caracteres e não aceita caracteres de controle. `user:rename` do anfitrião vai para os espectadores como `room:host`; o do espectador vai para o anfitrião como `viewer:renamed`. Nomes não aparecem nos logs. Os espectadores se veem pelo `id` público (`selfId` é o seu), gerado à parte e inútil para sinalização; o `viewerId` só vai para o anfitrião.
+13. **Limite de taxa.** Mais de `SOCKET_RATE_LIMIT_EVENTS` eventos em `SOCKET_RATE_LIMIT_WINDOW_MS` desconecta o socket.
 
 ## Regras do cliente
 
 1. O anfitrião é o único que cria `offer`. O espectador só responde.
 2. Candidatos ICE que chegam **antes** do `setRemoteDescription` vão para uma fila e são aplicados logo depois (`ice-candidate-queue`).
 3. Ignore `e.candidate === null` no `onicecandidate` (fim da coleta). Não envie.
-4. Ao receber uma oferta nova, o espectador fecha o peer antigo e cria outro.
-5. A cada `connect` do socket (inclusive reconexões), refaça o `join`.
-6. Depois de reconectar, o anfitrião **reconstrói todos os peers** e reemite `host:live { live: true }` se ainda estiver transmitindo.
+4. Ao receber uma oferta de um peer novo do anfitrião, o espectador fecha o peer antigo e cria outro. Uma oferta com o mesmo id de sessão (linha `o=`) do peer atual é um ICE restart e é respondida no mesmo peer.
+5. A cada `connect` do socket (inclusive reconexões), refaça o `join`. O espectador manda o `resume` que recebeu no último `ack`.
+6. A queda do socket não derruba o vídeo: nenhum dos dois fecha peers por causa dela. Depois de reconectar, o anfitrião só recria os peers que não estão `connected` e reemite `host:live { live: true }` se ainda estiver transmitindo; sem stream (por exemplo, depois de recarregar a página), reemite `host:live { live: false }`.
+7. Ao fechar ou recarregar a página (`pagehide`), o cliente fecha o socket de propósito, para o servidor liberar a vaga ou avisar os espectadores na hora.
 
 ## Sequências
 

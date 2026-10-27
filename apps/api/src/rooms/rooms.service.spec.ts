@@ -62,14 +62,50 @@ describe('RoomsService', () => {
     const { roomId } = rooms.create();
     expect(rooms.attachHost(roomId, 's1')).toEqual({ previousSocketId: null });
     rooms.setLive(roomId, true);
-    expect(rooms.detachHost(roomId, 'other')).toBe(false);
-    expect(rooms.detachHost(roomId, 's1')).toBe(true);
+    expect(rooms.detachHost(roomId, 'other', false)).toBe(false);
+    expect(rooms.detachHost(roomId, 's1', false)).toBe(true);
     const room = rooms.get(roomId)!;
     expect(room.hostSocketId).toBeNull();
     expect(room.hostDisconnectedAt).toBe(now);
-    expect(room.live).toBe(false);
+    expect(room.live).toBe(true);
     rooms.attachHost(roomId, 's2');
     expect(room.hostDisconnectedAt).toBeNull();
+    rooms.detachHost(roomId, 's2', true);
+    expect(room.live).toBe(false);
+  });
+
+  it('keeps an away viewer seat and gives it back only with the resume token', () => {
+    const { roomId } = rooms.create();
+    const added = rooms.addViewer(roomId, 'a');
+    if (!added.ok) throw new Error(added.error);
+    expect(rooms.detachViewer(roomId, added.viewerId, 'other')).toBeNull();
+    expect(rooms.detachViewer(roomId, added.viewerId, 'a')).toBe(now);
+    expect(rooms.viewerSocketId(roomId, added.viewerId)).toBeUndefined();
+    expect(rooms.end(roomId)).toEqual([]);
+  });
+
+  it('resumes a viewer with a valid token and rotates it', () => {
+    const { roomId } = rooms.create();
+    const added = rooms.addViewer(roomId, 'a');
+    if (!added.ok) throw new Error(added.error);
+    expect(rooms.resumeViewer(roomId, added.viewerId, 'x'.repeat(43), 'b')).toBeNull();
+    const resumed = rooms.resumeViewer(roomId, added.viewerId, added.resumeToken, 'b');
+    expect(resumed).toEqual({ previousSocketId: 'a', resumeToken: expect.any(String) });
+    expect(resumed?.resumeToken).not.toBe(added.resumeToken);
+    expect(rooms.viewerSocketId(roomId, added.viewerId)).toBe('b');
+    expect(rooms.resumeViewer(roomId, added.viewerId, added.resumeToken, 'c')).toBeNull();
+  });
+
+  it('expires an away viewer only if it did not come back', () => {
+    const { roomId } = rooms.create();
+    const added = rooms.addViewer(roomId, 'a');
+    if (!added.ok) throw new Error(added.error);
+    const away = rooms.detachViewer(roomId, added.viewerId, 'a')!;
+    rooms.resumeViewer(roomId, added.viewerId, added.resumeToken, 'b');
+    expect(rooms.expireViewer(roomId, added.viewerId, away)).toBe(false);
+    const again = rooms.detachViewer(roomId, added.viewerId, 'b')!;
+    expect(rooms.expireViewer(roomId, added.viewerId, again)).toBe(true);
+    expect(rooms.summary(roomId)?.viewerCount).toBe(0);
   });
 
   it('returns the previous socket when the host is replaced', () => {
@@ -105,7 +141,7 @@ describe('RoomsService', () => {
   it('expires with HOST_TIMEOUT after the grace period', () => {
     const { roomId } = rooms.create();
     rooms.attachHost(roomId, 's1');
-    rooms.detachHost(roomId, 's1');
+    rooms.detachHost(roomId, 's1', false);
     expect(rooms.findExpired(now + 999)).toEqual([]);
     expect(rooms.findExpired(now + 1000)).toEqual([{ roomId, reason: 'HOST_TIMEOUT' }]);
   });

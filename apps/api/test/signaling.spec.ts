@@ -91,8 +91,10 @@ describe('SignalingGateway', () => {
       ok: true,
       viewerId,
       iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+      resumeToken: expect.any(String),
+      resumed: false,
       live: false,
-      hostName: 'Anfitrião',
+      host: { name: 'Anfitrião', online: true },
       selfId: expect.any(String),
       viewers: [{ id: expect.any(String), name: 'Espectador' }],
       maxViewers: 5,
@@ -306,16 +308,16 @@ describe('SignalingGateway', () => {
       name: 'Bia',
     });
     if (!ack.ok) throw new Error(ack.error);
-    expect(ack.hostName).toBe('Ana');
+    expect(ack.host).toEqual({ name: 'Ana', online: true });
     expect(await joined).toEqual({ viewerId: ack.viewerId, name: 'Bia' });
 
     const renamed = waitForEvent(host, 'viewer:renamed');
     viewer.emit('user:rename', { name: 'Bianca' });
     expect(await renamed).toEqual({ viewerId: ack.viewerId, name: 'Bianca' });
 
-    const hostName = waitForEvent(viewer, 'room:host-name');
+    const hostName = waitForEvent(viewer, 'room:host');
     host.emit('user:rename', { name: 'Ana Paula' });
-    expect(await hostName).toEqual({ name: 'Ana Paula' });
+    expect(await hostName).toEqual({ name: 'Ana Paula', online: true });
 
     const again: HostJoinAck = await (
       await t.connect()
@@ -354,6 +356,94 @@ describe('SignalingGateway', () => {
     );
     b.viewer.disconnect();
     expect((await left).viewers).toEqual([{ id: a.ack.selfId, name: 'Espectador' }]);
+  });
+
+  // Closing the transport looks like a lost network to the server, unlike socket.disconnect().
+  function dropConnection(socket: ClientSocket) {
+    (socket.io.engine as unknown as { close(): void }).close();
+  }
+
+  it('21. a viewer that loses the connection keeps its seat and resumes with its token', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host, events: hostEvents } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId, ack } = await joinViewer(room.roomId);
+    hostEvents.length = 0;
+
+    dropConnection(viewer);
+    await waitUntil(async () => t.logger.lines.some((line) => line.includes('viewer away')));
+    expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
+
+    const back = await t.connect();
+    const resumed: ViewerJoinAck = await back.emitWithAck('viewer:join', {
+      roomId: room.roomId,
+      resume: { viewerId, token: ack.resumeToken, needsOffer: false },
+    });
+    if (!resumed.ok) throw new Error(resumed.error);
+    expect(resumed).toMatchObject({ viewerId, resumed: true, selfId: ack.selfId });
+    expect(resumed.resumeToken).not.toBe(ack.resumeToken);
+
+    const offer = waitForEvent(back, 'signal:offer');
+    host.emit('signal:offer', { viewerId, sdp: offerSdp });
+    expect(await offer).toEqual({ sdp: offerSdp });
+    expect(hostEvents).toEqual([]);
+    expect(t.logger.lines.join('\n')).not.toContain(ack.resumeToken);
+  });
+
+  it('22. a resumed viewer that lost its video asks the host for a new offer', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId, ack } = await joinViewer(room.roomId);
+    dropConnection(viewer);
+    await waitUntil(async () => t.logger.lines.some((line) => line.includes('viewer away')));
+
+    const joinedAgain = waitForEvent(host, 'viewer:joined');
+    const back = await t.connect();
+    await back.emitWithAck('viewer:join', {
+      roomId: room.roomId,
+      resume: { viewerId, token: ack.resumeToken, needsOffer: true },
+    });
+    expect(await joinedAgain).toEqual({ viewerId, name: 'Espectador' });
+  });
+
+  it('23. an away viewer is removed after VIEWER_GRACE_MS and a wrong token gets a new seat', async () => {
+    t = await startApp({ VIEWER_GRACE_MS: '150' });
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, viewerId, ack } = await joinViewer(room.roomId);
+
+    const left = waitForEvent(host, 'viewer:left');
+    dropConnection(viewer);
+    expect(await left).toEqual({ viewerId });
+
+    const late = await t.connect();
+    const fresh: ViewerJoinAck = await late.emitWithAck('viewer:join', {
+      roomId: room.roomId,
+      resume: { viewerId, token: ack.resumeToken, needsOffer: true },
+    });
+    expect(fresh).toMatchObject({ ok: true, resumed: false });
+    if (fresh.ok) expect(fresh.viewerId).not.toBe(viewerId);
+  });
+
+  it('24. a host that loses the connection stays live and viewers see it go offline', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const { host } = await joinHost(room.roomId, room.hostToken);
+    const { viewer, events } = await joinViewer(room.roomId);
+    host.emit('host:live', { live: true });
+    await waitForEvent(viewer, 'room:status');
+    events.length = 0;
+
+    const offline = waitForEvent(viewer, 'room:host');
+    dropConnection(host);
+    expect(await offline).toEqual({ name: 'Anfitrião', online: false });
+    expect((await roomStatus(room.roomId)).body.live).toBe(true);
+
+    const online = waitForEvent(viewer, 'room:host');
+    await joinHost(room.roomId, room.hostToken);
+    expect(await online).toEqual({ name: 'Anfitrião', online: true });
+    expect(events.map(([event]) => event)).not.toContain('room:status');
   });
 
   it('19. rejects empty, oversized or control-character names', async () => {

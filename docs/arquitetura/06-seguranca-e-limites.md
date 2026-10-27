@@ -19,7 +19,8 @@ O MVP não tem contas nem senha de sala: **quem tem o link, entra**. A seguranç
 | Rebaixamento para HTTP | `Strict-Transport-Security` no Caddy, além do redirecionamento para HTTPS |
 | Clickjacking | `X-Frame-Options: DENY` no Caddy |
 | Acesso indevido a recursos do navegador | `Permissions-Policy` libera só a captura de tela; câmera, microfone e localização ficam negados. `Cross-Origin-Opener-Policy: same-origin` isola a janela de páginas de outras origens |
-| Vazamento de dados em log | Proibido logar SDP, candidatos ICE, `hostToken` e `TURN_SECRET` |
+| Roubo da vaga de um espectador | O `resumeToken` (32 bytes de `randomBytes`) fica só na memória da página, nunca na URL nem em log, e é trocado a cada retomada. A API guarda apenas o `sha256` e compara com `timingSafeEqual`. A vaga guardada expira em `VIEWER_GRACE_MS` |
+| Vazamento de dados em log | Proibido logar SDP, candidatos ICE, `hostToken`, `resumeToken` e `TURN_SECRET` |
 | Contêiner com privilégio demais | API roda com usuário não root e sistema de arquivos somente leitura. Todos os serviços com `no-new-privileges`, `cap_drop: ALL` (o Caddy só com `NET_BIND_SERVICE`) e limites de memória e processos |
 
 ## O que o P2P expõe (aviso ao usuário)

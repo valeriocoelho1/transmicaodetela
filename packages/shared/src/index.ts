@@ -26,6 +26,7 @@ export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; e
 const roomId = z.string().regex(ROOM_ID_REGEX);
 const viewerId = z.uuid();
 const hostToken = z.string().min(20).max(128);
+const resumeToken = z.string().min(20).max(128);
 export const displayName = z
   .string()
   .trim()
@@ -48,7 +49,12 @@ export const iceCandidate = z.object({
 
 export const hostJoinPayload = z.object({ roomId, hostToken, name: displayName.optional() });
 export const hostLivePayload = z.object({ live: z.boolean() });
-export const viewerJoinPayload = z.object({ roomId, name: displayName.optional() });
+export const viewerJoinPayload = z.object({
+  roomId,
+  name: displayName.optional(),
+  // Sent after a dropped connection to keep the same seat and video connection.
+  resume: z.object({ viewerId, token: resumeToken, needsOffer: z.boolean() }).optional(),
+});
 export const renamePayload = z.object({ name: displayName });
 export const offerPayload = z.object({ viewerId, sdp: offerSdp });
 export const answerPayload = z.object({ sdp: answerSdp });
@@ -89,11 +95,18 @@ export type HostJoinAck = Ack<{
   viewers: RoomViewer[];
   maxViewers: number;
 }>;
+export interface RoomHost {
+  name: string;
+  online: boolean;
+}
+
 export type ViewerJoinAck = Ack<{
   viewerId: string;
+  resumeToken: string;
+  resumed: boolean;
   iceServers: IceServer[];
   live: boolean;
-  hostName: string;
+  host: RoomHost;
   selfId: string;
   viewers: PublicViewer[];
   maxViewers: number;
@@ -114,7 +127,7 @@ export interface ServerToClientEvents {
   'viewer:joined': (payload: RoomViewer) => void;
   'viewer:renamed': (payload: RoomViewer) => void;
   'viewer:left': (payload: { viewerId: string }) => void;
-  'room:host-name': (payload: { name: string }) => void;
+  'room:host': (payload: RoomHost) => void;
   'room:viewers': (payload: { viewers: PublicViewer[] }) => void;
   'room:host-replaced': () => void;
   'room:status': (payload: { live: boolean }) => void;

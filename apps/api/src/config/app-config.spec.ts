@@ -11,6 +11,7 @@ describe('loadConfig', () => {
       maxViewersPerRoom: 5,
       maxRooms: 50,
       roomHostGraceMs: 60_000,
+      viewerGraceMs: 20_000,
       roomUnusedTtlMs: 900_000,
       roomMaxAgeMs: 43_200_000,
       sweepIntervalMs: 30_000,

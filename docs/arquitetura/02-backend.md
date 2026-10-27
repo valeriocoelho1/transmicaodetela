@@ -27,6 +27,7 @@ Validadas por zod no start. Todas têm padrão, exceto as marcadas como obrigat�
 | `MAX_VIEWERS_PER_ROOM` | `5` | Espectadores simultâneos por sala |
 | `MAX_ROOMS` | `50` | Salas simultâneas no servidor |
 | `ROOM_HOST_GRACE_MS` | `60000` | Tempo para o anfitrião voltar antes de a sala ser encerrada |
+| `VIEWER_GRACE_MS` | `20000` | Tempo que a vaga de um espectador que perdeu a conexão fica guardada para ele retomar |
 | `ROOM_UNUSED_TTL_MS` | `900000` | Sala em que o anfitrião nunca entrou é apagada após esse tempo |
 | `ROOM_MAX_AGE_MS` | `43200000` | Vida máxima de uma sala (12 h) |
 | `SWEEP_INTERVAL_MS` | `30000` | Intervalo da varredura de salas expiradas |
