@@ -12,10 +12,11 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 
 | Evento | Quem envia | Payload | Resposta (`ack`) |
 | --- | --- | --- | --- |
-| `host:join` | anfitrião | `{ roomId, hostToken }` | `{ ok: true, iceServers, viewers: string[], maxViewers } ` ou `{ ok: false, error }` |
+| `host:join` | anfitrião | `{ roomId, hostToken, name? }` | `{ ok: true, iceServers, viewers: { viewerId, name }[], maxViewers } ` ou `{ ok: false, error }` |
 | `host:live` | anfitrião | `{ live: boolean }` | nenhuma |
 | `host:end` | anfitrião | nenhum | nenhuma |
-| `viewer:join` | espectador | `{ roomId }` | `{ ok: true, viewerId, iceServers, live } ` ou `{ ok: false, error }` |
+| `viewer:join` | espectador | `{ roomId, name? }` | `{ ok: true, viewerId, iceServers, live, hostName } ` ou `{ ok: false, error }` |
+| `user:rename` | ambos | `{ name }` | nenhuma |
 | `signal:offer` | anfitrião | `{ viewerId, sdp }` | nenhuma |
 | `signal:answer` | espectador | `{ sdp }` | nenhuma |
 | `signal:ice` | ambos | anfitrião: `{ viewerId, candidate }`. Espectador: `{ candidate }` | nenhuma |
@@ -26,12 +27,14 @@ Contrato entre navegadores e API pelo Socket.IO. A fonte de verdade em código �
 
 | Evento | Para quem | Payload | Quando |
 | --- | --- | --- | --- |
-| `viewer:joined` | anfitrião | `{ viewerId }` | Um espectador entrou |
+| `viewer:joined` | anfitrião | `{ viewerId, name }` | Um espectador entrou |
+| `viewer:renamed` | anfitrião | `{ viewerId, name }` | Um espectador trocou de nome |
 | `viewer:left` | anfitrião | `{ viewerId }` | Um espectador saiu |
 | `signal:answer` | anfitrião | `{ viewerId, sdp }` | Repassa a resposta do espectador |
 | `signal:ice` | anfitrião | `{ viewerId, candidate }` | Repassa candidato do espectador |
 | `room:host-replaced` | anfitrião antigo | nenhum | Outro socket assumiu como anfitrião. O servidor desconecta este socket em seguida |
 | `room:status` | espectadores | `{ live: boolean }` | Anfitrião começou ou parou de transmitir, ou ficou offline |
+| `room:host-name` | espectadores | `{ name }` | Anfitrião entrou ou trocou de nome |
 | `signal:offer` | espectador | `{ sdp }` | Repassa a oferta do anfitrião |
 | `signal:ice` | espectador | `{ candidate }` | Repassa candidato do anfitrião |
 | `room:ended` | espectadores | `{ reason }`, com `reason` igual a `HOST_ENDED`, `HOST_TIMEOUT` ou `EXPIRED` | A sala foi encerrada. O servidor desconecta os espectadores em seguida |
@@ -84,7 +87,8 @@ Também exporte em `@app/shared`: o tipo `Ack<T>` (`{ ok: true } & T | { ok: fal
 8. **`signal:ice`.** Do anfitrião, repassa ao `viewerId` indicado. Do espectador, repassa ao anfitrião com o `viewerId` do remetente.
 9. **Anfitrião desconecta.** `live = false`, envia `room:status { live: false }`, mantém a sala por `ROOM_HOST_GRACE_MS`. Se ele voltar com o token, a sala segue. Se não, a varredura encerra com `HOST_TIMEOUT`.
 10. **Espectador desconecta.** Remove o espectador e envia `viewer:left` ao anfitrião.
-11. **Limite de taxa.** Mais de `SOCKET_RATE_LIMIT_EVENTS` eventos em `SOCKET_RATE_LIMIT_WINDOW_MS` desconecta o socket.
+11. **Nomes.** `name` é opcional no `join` (padrão `Anfitrião` ou `Espectador`), passa por `trim`, tem de 1 a 32 caracteres e não aceita caracteres de controle. `user:rename` do anfitrião vai para os espectadores como `room:host-name`; o do espectador vai para o anfitrião como `viewer:renamed`. Nomes não aparecem nos logs.
+12. **Limite de taxa.** Mais de `SOCKET_RATE_LIMIT_EVENTS` eventos em `SOCKET_RATE_LIMIT_WINDOW_MS` desconecta o socket.
 
 ## Regras do cliente
 

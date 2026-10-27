@@ -3,6 +3,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type EndReason, ROOM_ID_REGEX } from '@app/shared';
 import { APP_CONFIG, type AppConfig, CLOCK, type Clock } from '../config/app-config';
 
+export interface Viewer {
+  socketId: string;
+  name: string;
+}
+
 export interface Room {
   id: string;
   hostTokenHash: Buffer;
@@ -10,9 +15,13 @@ export interface Room {
   hostEverJoined: boolean;
   hostSocketId: string | null;
   hostDisconnectedAt: number | null;
+  hostName: string;
   live: boolean;
-  viewers: Map<string, string>;
+  viewers: Map<string, Viewer>;
 }
+
+export const DEFAULT_HOST_NAME = 'Anfitrião';
+export const DEFAULT_VIEWER_NAME = 'Espectador';
 
 export class RoomLimitReachedError extends Error {
   constructor() {
@@ -54,6 +63,7 @@ export class RoomsService {
       hostEverJoined: false,
       hostSocketId: null,
       hostDisconnectedAt: null,
+      hostName: DEFAULT_HOST_NAME,
       live: false,
       viewers: new Map(),
     });
@@ -71,12 +81,13 @@ export class RoomsService {
     return timingSafeEqual(sha256(token), room.hostTokenHash);
   }
 
-  attachHost(roomId: string, socketId: string): { previousSocketId: string | null } {
+  attachHost(roomId: string, socketId: string, name?: string): { previousSocketId: string | null } {
     const room = this.get(roomId);
     if (!room) return { previousSocketId: null };
     const previous = room.hostSocketId;
     room.hostEverJoined = true;
     room.hostSocketId = socketId;
+    if (name) room.hostName = name;
     room.hostDisconnectedAt = null;
     return { previousSocketId: previous !== socketId ? previous : null };
   }
@@ -97,14 +108,33 @@ export class RoomsService {
     return true;
   }
 
-  addViewer(roomId: string, socketId: string): AddViewerResult {
+  addViewer(roomId: string, socketId: string, name = DEFAULT_VIEWER_NAME): AddViewerResult {
     const room = this.get(roomId);
     if (!room) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (room.viewers.size >= this.config.maxViewersPerRoom)
       return { ok: false, error: 'ROOM_FULL' };
     const viewerId = randomUUID();
-    room.viewers.set(viewerId, socketId);
+    room.viewers.set(viewerId, { socketId, name });
     return { ok: true, viewerId };
+  }
+
+  renameHost(roomId: string, name: string): void {
+    const room = this.get(roomId);
+    if (room) room.hostName = name;
+  }
+
+  renameViewer(roomId: string, viewerId: string, name: string): boolean {
+    const viewer = this.get(roomId)?.viewers.get(viewerId);
+    if (!viewer) return false;
+    viewer.name = name;
+    return true;
+  }
+
+  viewerList(roomId: string): { viewerId: string; name: string }[] {
+    return [...(this.get(roomId)?.viewers ?? [])].map(([viewerId, { name }]) => ({
+      viewerId,
+      name,
+    }));
   }
 
   removeViewer(roomId: string, viewerId: string): boolean {
@@ -112,14 +142,14 @@ export class RoomsService {
   }
 
   viewerSocketId(roomId: string, viewerId: string): string | undefined {
-    return this.get(roomId)?.viewers.get(viewerId);
+    return this.get(roomId)?.viewers.get(viewerId)?.socketId;
   }
 
   end(roomId: string): string[] {
     const room = this.get(roomId);
     if (!room) return [];
     this.rooms.delete(roomId);
-    return [...room.viewers.values()];
+    return [...room.viewers.values()].map((viewer) => viewer.socketId);
   }
 
   findExpired(now: number = this.now()): { roomId: string; reason: EndReason }[] {

@@ -92,8 +92,9 @@ describe('SignalingGateway', () => {
       viewerId,
       iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
       live: false,
+      hostName: 'Anfitrião',
     });
-    expect(await joined).toEqual({ viewerId });
+    expect(await joined).toEqual({ viewerId, name: 'Espectador' });
     expect((await roomStatus(room.roomId)).body.viewerCount).toBe(1);
   });
 
@@ -164,8 +165,8 @@ describe('SignalingGateway', () => {
     await offerToB;
 
     expect(hostEvents).toEqual([
-      ['viewer:joined', { viewerId: a.viewerId }],
-      ['viewer:joined', { viewerId: b.viewerId }],
+      ['viewer:joined', { viewerId: a.viewerId, name: 'Espectador' }],
+      ['viewer:joined', { viewerId: b.viewerId, name: 'Espectador' }],
       ['signal:ice', { viewerId: a.viewerId, candidate }],
       ['signal:answer', { viewerId: a.viewerId, sdp: answerSdp }],
     ]);
@@ -231,7 +232,7 @@ describe('SignalingGateway', () => {
     await status;
 
     const again = await joinHost(room.roomId, room.hostToken);
-    expect(again.ack).toMatchObject({ ok: true, viewers: [viewerId] });
+    expect(again.ack).toMatchObject({ ok: true, viewers: [{ viewerId, name: 'Espectador' }] });
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect((await roomStatus(room.roomId)).status).toBe(200);
     expect(events.map(([event]) => event)).not.toContain('room:ended');
@@ -287,6 +288,49 @@ describe('SignalingGateway', () => {
     const room = await t.createRoom();
     expect((await roomStatus(room.roomId)).status).toBe(200);
     await waitUntil(async () => (await roomStatus(room.roomId)).status === 404);
+  });
+
+  it('18. shares display names on join and relays renames', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const host = await t.connect();
+    await host.emitWithAck('host:join', { ...room, name: '  Ana  ' });
+
+    const joined = waitForEvent(host, 'viewer:joined');
+    const viewer = await t.connect();
+    const ack: ViewerJoinAck = await viewer.emitWithAck('viewer:join', {
+      roomId: room.roomId,
+      name: 'Bia',
+    });
+    if (!ack.ok) throw new Error(ack.error);
+    expect(ack.hostName).toBe('Ana');
+    expect(await joined).toEqual({ viewerId: ack.viewerId, name: 'Bia' });
+
+    const renamed = waitForEvent(host, 'viewer:renamed');
+    viewer.emit('user:rename', { name: 'Bianca' });
+    expect(await renamed).toEqual({ viewerId: ack.viewerId, name: 'Bianca' });
+
+    const hostName = waitForEvent(viewer, 'room:host-name');
+    host.emit('user:rename', { name: 'Ana Paula' });
+    expect(await hostName).toEqual({ name: 'Ana Paula' });
+
+    const again: HostJoinAck = await (
+      await t.connect()
+    ).emitWithAck('host:join', { roomId: room.roomId, hostToken: room.hostToken });
+    expect(again).toMatchObject({ viewers: [{ viewerId: ack.viewerId, name: 'Bianca' }] });
+    expect(t.logger.lines.join('\n')).not.toMatch(/Bianca|Ana Paula/);
+  });
+
+  it('19. rejects empty, oversized or control-character names', async () => {
+    t = await startApp();
+    const room = await t.createRoom();
+    const socket = await t.connect();
+    for (const name of ['   ', 'x'.repeat(33), 'a\u0000b']) {
+      expect(await socket.emitWithAck('viewer:join', { roomId: room.roomId, name })).toEqual({
+        ok: false,
+        error: 'INVALID_PAYLOAD',
+      });
+    }
   });
 
   it('drops an oversized message without crashing', async () => {

@@ -18,6 +18,7 @@ import {
   iceFromHostPayload,
   iceFromViewerPayload,
   offerPayload,
+  renamePayload,
   type ServerToClientEvents,
   viewerJoinPayload,
   type ViewerJoinAck,
@@ -99,12 +100,12 @@ export class SignalingGateway
   hostJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): HostJoinAck {
     const parsed = hostJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId, hostToken } = parsed.data;
+    const { roomId, hostToken, name } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
     if (!this.rooms.verifyHost(roomId, hostToken)) return { ok: false, error: 'INVALID_TOKEN' };
 
     if (socket.data.roomId) this.leave(socket);
-    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id);
+    const { previousSocketId } = this.rooms.attachHost(roomId, socket.id, name);
     socket.data = { role: 'host', roomId };
     if (previousSocketId) {
       const previous = this.socket(previousSocketId);
@@ -116,10 +117,11 @@ export class SignalingGateway
       this.logger.log(`Room ${shortId(roomId)} host replaced`);
     }
     this.logger.log(`Room ${shortId(roomId)} host joined`);
+    this.emitHostName(roomId);
     return {
       ok: true,
       iceServers: this.ice.iceServers(),
-      viewers: [...(this.rooms.get(roomId)?.viewers.keys() ?? [])],
+      viewers: this.rooms.viewerList(roomId),
       maxViewers: this.config.maxViewersPerRoom,
     };
   }
@@ -146,17 +148,20 @@ export class SignalingGateway
   viewerJoin(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): ViewerJoinAck {
     const parsed = viewerJoinPayload.safeParse(body);
     if (!parsed.success) return { ok: false, error: 'INVALID_PAYLOAD' };
-    const { roomId } = parsed.data;
+    const { roomId, name } = parsed.data;
     if (!this.rooms.get(roomId)) return { ok: false, error: 'ROOM_NOT_FOUND' };
 
     if (socket.data.roomId) this.leave(socket);
-    const added = this.rooms.addViewer(roomId, socket.id);
+    const added = this.rooms.addViewer(roomId, socket.id, name);
     if (!added.ok) return added;
     socket.data = { role: 'viewer', roomId, viewerId: added.viewerId };
 
     const room = this.rooms.get(roomId);
     if (room?.hostSocketId) {
-      this.server.to(room.hostSocketId).emit('viewer:joined', { viewerId: added.viewerId });
+      this.server.to(room.hostSocketId).emit('viewer:joined', {
+        viewerId: added.viewerId,
+        name: room.viewers.get(added.viewerId)?.name ?? '',
+      });
     }
     this.logger.log(`Room ${shortId(roomId)} viewer joined (viewers: ${room?.viewers.size ?? 0})`);
     return {
@@ -164,7 +169,29 @@ export class SignalingGateway
       viewerId: added.viewerId,
       iceServers: this.ice.iceServers(),
       live: room?.live ?? false,
+      hostName: room?.hostName ?? '',
     };
+  }
+
+  @SubscribeMessage('user:rename')
+  rename(@ConnectedSocket() socket: AppSocket, @MessageBody() body: unknown): void {
+    const parsed = renamePayload.safeParse(body);
+    const hostRoomId = this.hostRoom(socket);
+    const viewer = this.viewerRoom(socket);
+    if (!hostRoomId && !viewer) return;
+    if (!parsed.success) return this.dropInvalid('user:rename');
+    const { name } = parsed.data;
+    if (hostRoomId) {
+      this.rooms.renameHost(hostRoomId, name);
+      this.emitHostName(hostRoomId);
+      return;
+    }
+    if (viewer && this.rooms.renameViewer(viewer.roomId, viewer.viewerId, name)) {
+      const hostSocketId = this.rooms.get(viewer.roomId)?.hostSocketId;
+      if (hostSocketId) {
+        this.server.to(hostSocketId).emit('viewer:renamed', { viewerId: viewer.viewerId, name });
+      }
+    }
   }
 
   @SubscribeMessage('signal:offer')
@@ -268,8 +295,16 @@ export class SignalingGateway
   }
 
   private emitToViewers(roomId: string, event: 'room:status', payload: { live: boolean }): void {
-    for (const socketId of this.rooms.get(roomId)?.viewers.values() ?? []) {
+    for (const { socketId } of this.rooms.get(roomId)?.viewers.values() ?? []) {
       this.server.to(socketId).emit(event, payload);
+    }
+  }
+
+  private emitHostName(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    for (const { socketId } of room.viewers.values()) {
+      this.server.to(socketId).emit('room:host-name', { name: room.hostName });
     }
   }
 

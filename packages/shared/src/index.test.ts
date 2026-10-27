@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   answerPayload,
   createRoomResponse,
+  displayName,
   healthResponse,
   hostJoinPayload,
   hostLivePayload,
@@ -47,6 +48,19 @@ describe('ROOM_ID_REGEX', () => {
     expect(ROOM_ID_REGEX.test('aaaaaaaaaaaaa')).toBe(false);
     expect(ROOM_ID_REGEX.test('aaaaaaaaaaa+')).toBe(false);
     expect(ROOM_ID_REGEX.test('aaaaaaaaaaa=')).toBe(false);
+  });
+});
+
+describe('displayName', () => {
+  it('trims and accepts names with accents and emoji', () => {
+    expect(displayName.parse('  Capivara Curiosa ')).toBe('Capivara Curiosa');
+    expect(displayName.parse('João 🎮')).toBe('João 🎮');
+  });
+
+  it('rejects empty, too long or control characters', () => {
+    expect(displayName.safeParse('   ').success).toBe(false);
+    expect(displayName.safeParse('x'.repeat(33)).success).toBe(false);
+    expect(displayName.safeParse('a\nb').success).toBe(false);
   });
 });
 
