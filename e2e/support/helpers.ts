@@ -28,7 +28,7 @@ export async function openHostRoom(browser: Browser): Promise<{ host: Page; link
   const host = await context.newPage();
   await host.goto(url('/'));
   await host.getByRole('button', { name: 'Criar sala' }).click();
-  await expect(host.getByRole('heading', { name: 'Sua sala' })).toBeVisible();
+  await expect(host.getByRole('heading', { name: 'Sua sala' })).toBeAttached();
   await expect(host.getByLabel('0 espectadores', { exact: true })).toBeVisible();
 
   await host.getByRole('button', { name: 'Copiar link' }).click();

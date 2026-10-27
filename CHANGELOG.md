@@ -13,6 +13,9 @@ Versões seguem [SemVer](https://semver.org/lang/pt-BR/). Cada versão é uma ta
 - Lista de espectadores com os nomes no lugar dos lugares ocupados; o espectador vê o nome do anfitrião.
 - Tela cheia no celular, inclusive no iPhone, girando para deitado ou em pé conforme o formato da tela transmitida.
 - Carregamento com um círculo girando suave no lugar do quadrado.
+- O espectador também vê a lista de espectadores, com o próprio nome marcado como "você".
+- Vídeo maior: sala mais larga, sem o título "Sua sala", com o status na barra do topo.
+- Botões principais da sala no vermelho da landing, no lugar do amarelo.
 
 ### Transmissão
 

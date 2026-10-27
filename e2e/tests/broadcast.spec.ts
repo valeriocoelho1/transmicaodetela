@@ -32,6 +32,8 @@ test('2. viewer who joins during the broadcast receives the video', async ({ bro
   const second = await openViewer(browser, link);
   await expectVideoPlaying(second);
   await expect(host.getByLabel('2 espectadores', { exact: true })).toBeVisible();
+  await expect(second.getByLabel('2 espectadores', { exact: true })).toBeVisible();
+  await expect(second.getByText('você', { exact: true })).toBeVisible();
 });
 
 test('3. a third viewer sees that the room is full', async ({ browser }) => {

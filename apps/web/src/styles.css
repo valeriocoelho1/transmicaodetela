@@ -38,8 +38,8 @@
   --px: 3px;
   --pixel-line: var(--line);
   --pixel-drop: 8px 8px 0 1px #000000;
-  --primary: var(--accent);
-  --on-primary: var(--on-accent);
+  --primary: var(--tomato);
+  --on-primary: var(--ink);
   --focus: var(--accent);
 
   --font-pixel: 'Tiny5', ui-monospace, monospace;
@@ -118,6 +118,17 @@ input {
   color: var(--muted);
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .stack {
   display: grid;
   gap: var(--space-3);
@@ -156,7 +167,7 @@ input {
 }
 
 .container--wide {
-  max-width: 80rem;
+  max-width: 120rem;
 }
 
 .container--narrow {
@@ -191,12 +202,43 @@ input {
 
 .room-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
   border-bottom: 2px solid var(--line);
+}
+
+.room-bar__meta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
+.room-bar__meta:empty {
+  display: none;
+}
+
+.room-bar__title {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-bar__host {
+  color: var(--soft);
+  font-weight: 500;
 }
 
 .room-bar__brand {
@@ -292,8 +334,8 @@ button.profile .icon {
 }
 
 .profile__action[type='submit']:not(:disabled) {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .page-title {
@@ -480,7 +522,7 @@ button.profile .icon {
 .stage {
   /* The 16:9 frame never gets taller than the window minus what sits above it (page padding,
      head, TV border) and below it (knobs, control bar). The page's bottom padding may scroll. */
-  --stage-reserved: 24rem;
+  --stage-reserved: 17rem;
   display: grid;
   gap: var(--space-6);
   align-content: start;
@@ -640,17 +682,17 @@ button.profile .icon {
   gap: var(--space-3);
 }
 
-/* ---------- Host room ---------- */
+/* ---------- Room grid (stage + side panel) ---------- */
 
-.host-grid {
+.room-grid {
   display: grid;
-  gap: var(--space-7);
+  gap: var(--space-6);
   align-items: start;
 }
 
-.host-side {
+.room-side {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
 .link-field {
@@ -737,6 +779,20 @@ button.profile .icon {
   padding: var(--space-2) var(--space-3);
   background: var(--surface-2);
   animation: viewer-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.viewer-list__item--self {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.viewer-list__self {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .viewer-list__name {
@@ -1386,8 +1442,8 @@ button.profile .icon {
     gap: 4.5rem;
   }
 
-  .host-grid {
-    grid-template-columns: minmax(0, 1fr) 22.5rem;
+  .room-grid {
+    grid-template-columns: minmax(0, 1fr) 20rem;
   }
 }
 
@@ -1454,6 +1510,14 @@ button.profile .icon {
 
   .site-footer {
     padding-inline: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .room-bar__meta {
+    flex-basis: 100%;
+    order: 3;
+    justify-content: space-between;
   }
 }
 
@@ -1551,7 +1615,7 @@ button.profile .icon {
   }
 
   .stage {
-    --stage-reserved: 19.5rem;
+    --stage-reserved: 15.5rem;
   }
 }
 

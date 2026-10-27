@@ -6,6 +6,7 @@ import { RemoteVideo } from '../components/RemoteVideo';
 import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
+import { ViewerList } from '../components/ViewerList';
 import { useDisplayName } from '../hooks/useDisplayName';
 import { useViewerSession, type ViewerState } from '../hooks/useViewerSession';
 import {
@@ -28,28 +29,9 @@ const stateIcons: Record<Exclude<ViewerState, 'watching'>, IconName> = {
 export function ViewerPage() {
   const { roomId = '' } = useParams();
   const [name, rename] = useDisplayName();
-  const { state, stream, hasAudio, endedReason, hostName, retry } = useViewerSession(roomId, name);
-  const head = (
-    <>
-      <RoomBar name={name} onRename={rename} />
-      <div className="page-head">
-        <div className="page-head__title">
-          <h1 className="page-title">Transmissão</h1>
-          {hostName && <p className="page-subtitle">de {hostName}</p>}
-        </div>
-        {state === 'watching' && stream && <StatusPill tone="live" label="Ao vivo" />}
-      </div>
-    </>
-  );
-
-  if (state === 'watching' && stream) {
-    return (
-      <Layout>
-        {head}
-        <RemoteVideo stream={stream} hasAudio={hasAudio} />
-      </Layout>
-    );
-  }
+  const session = useViewerSession(roomId, name);
+  const { state, stream, endedReason, hostName } = session;
+  const watching = state === 'watching' && stream !== null;
 
   const current = state === 'watching' ? 'waiting' : state;
   const message = {
@@ -64,33 +46,56 @@ export function ViewerPage() {
   const isFinal = current === 'not_found' || current === 'full' || current === 'ended';
   const isError = current === 'not_found' || current === 'failed' || current === 'full';
   const busy = current === 'connecting' || current === 'reconnecting' || current === 'waiting';
+  const showList = !isFinal && session.selfId !== null;
 
   return (
     <Layout>
-      {head}
-      <div className="stage">
-        <div className="tv pixel-box">
-          <div className="stage__frame">
-            <StateMessage
-              icon={stateIcons[current]}
-              tone={isError ? 'error' : 'neutral'}
-              busy={busy}
-              message={message}
-            >
-              {current === 'failed' && (
-                <Button variant="primary" onClick={retry}>
-                  Tentar novamente
-                </Button>
-              )}
-              {isFinal && (
-                <Link className="btn btn--secondary" to="/">
-                  <Icon name="arrowLeft" />
-                  <span>Voltar ao início</span>
-                </Link>
-              )}
-            </StateMessage>
+      <RoomBar name={name} onRename={rename}>
+        <h1 className="room-bar__title">
+          Transmissão
+          {hostName && <span className="room-bar__host"> de {hostName}</span>}
+        </h1>
+        {watching && <StatusPill tone="live" label="Ao vivo" />}
+      </RoomBar>
+      <div className={showList ? 'room-grid' : undefined}>
+        {watching ? (
+          <RemoteVideo stream={stream} hasAudio={session.hasAudio} />
+        ) : (
+          <div className="stage">
+            <div className="tv pixel-box">
+              <div className="stage__frame">
+                <StateMessage
+                  icon={stateIcons[current]}
+                  tone={isError ? 'error' : 'neutral'}
+                  busy={busy}
+                  message={message}
+                >
+                  {current === 'failed' && (
+                    <Button variant="primary" onClick={session.retry}>
+                      Tentar novamente
+                    </Button>
+                  )}
+                  {isFinal && (
+                    <Link className="btn btn--secondary" to="/">
+                      <Icon name="arrowLeft" />
+                      <span>Voltar ao início</span>
+                    </Link>
+                  )}
+                </StateMessage>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+        {showList && (
+          <aside className="room-side">
+            <ViewerList
+              viewers={session.viewers}
+              maxViewers={session.maxViewers}
+              selfId={session.selfId}
+              emptyText="Ninguém na sala ainda."
+            />
+          </aside>
+        )}
       </div>
     </Layout>
   );

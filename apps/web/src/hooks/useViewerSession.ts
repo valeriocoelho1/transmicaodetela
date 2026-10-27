@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type EndReason, ROOM_ID_REGEX } from '@app/shared';
+import { type EndReason, type PublicViewer, ROOM_ID_REGEX } from '@app/shared';
 import { createSignalingSocket, type SignalingSocket } from '../lib/signaling';
 import { ViewerReceiver } from '../lib/webrtc/viewer-receiver';
 
@@ -25,6 +25,9 @@ export function useViewerSession(roomId: string, name: string) {
   const [hasAudio, setHasAudio] = useState(false);
   const [endedReason, setEndedReason] = useState<EndReason | null>(null);
   const [hostName, setHostName] = useState<string | null>(null);
+  const [viewers, setViewers] = useState<PublicViewer[]>([]);
+  const [selfId, setSelfId] = useState<string | null>(null);
+  const [maxViewers, setMaxViewers] = useState<number | null>(null);
   const stateRef = useRef<ViewerState>(state);
   const sessionRef = useRef<Session | null>(null);
   const nameRef = useRef(name);
@@ -62,6 +65,7 @@ export function useViewerSession(roomId: string, name: string) {
     sessionRef.current = { socket, receiver };
 
     socket.on('room:host-name', ({ name: next }) => setHostName(next));
+    socket.on('room:viewers', ({ viewers: next }) => setViewers(next));
     socket.on('room:status', ({ live }) => {
       if (isFinal() || live) return;
       receiver.close();
@@ -96,6 +100,9 @@ export function useViewerSession(roomId: string, name: string) {
       joinedRef.current = true;
       receiver.setIceServers(ack.iceServers);
       setHostName(ack.hostName);
+      setViewers(ack.viewers);
+      setSelfId(ack.selfId);
+      setMaxViewers(ack.maxViewers);
       setState('waiting');
     });
     socket.connect();
@@ -124,5 +131,15 @@ export function useViewerSession(roomId: string, name: string) {
     session.socket.connect();
   }, [setState]);
 
-  return { state, stream, hasAudio, endedReason, hostName, retry };
+  return {
+    state,
+    stream,
+    hasAudio,
+    endedReason,
+    hostName,
+    viewers,
+    selfId,
+    maxViewers,
+    retry,
+  };
 }

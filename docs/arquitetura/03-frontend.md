@@ -8,9 +8,9 @@ React + Vite + TypeScript. CSS simples, sem biblioteca de componentes. Toda a m�
 | --- | --- |
 | `/` | Início: explica em uma frase e tem o botão "Criar sala" |
 | `/host/:roomId` | Anfitrião: link, compartilhar tela, lista de espectadores com nomes, encerrar |
-| `/r/:roomId` | Espectador: vídeo (com tela cheia) ou estado de espera, e o nome do anfitrião |
+| `/r/:roomId` | Espectador: vídeo (com tela cheia) ou estado de espera, o nome do anfitrião e a lista de espectadores, com o próprio nome marcado como "você" |
 
-Nas duas telas da sala, a barra do topo mostra o nome da pessoa com um avatar da inicial. O nome começa aleatório (animal + adjetivo), fica no `localStorage` (`display-name`) e pode ser trocado ali; a troca vai para a sala por `user:rename`.
+Nas duas telas da sala, a barra do topo mostra o status (Ao vivo, reconectando), no espectador o título "Transmissão de {anfitrião}", e o nome da pessoa com um avatar da inicial. A página do anfitrião não mostra título visível ("Sua sala" fica só para leitores de tela), para sobrar altura para o vídeo. O nome começa aleatório (animal + adjetivo), fica no `localStorage` (`display-name`) e pode ser trocado ali; a troca vai para a sala por `user:rename`.
 
 Tela cheia: com `requestFullscreen` na moldura do vídeo e, em celular, `screen.orientation.lock` para deitado ou em pé conforme o formato do vídeo recebido. No iPhone, que não tem tela cheia de elemento, usa o player nativo (`webkitEnterFullscreen`).
 | `*` | Página não encontrada |
@@ -181,7 +181,7 @@ Expõe: `state`, `stream`, `hasAudio`, `endedReason`, `retry()`.
 | Início, erro geral | Não foi possível criar a sala. Tente novamente em instantes. |
 | Início, erro 429 | Muitas tentativas. Aguarde um minuto. |
 | Início, erro 503 | O servidor está lotado agora. Tente novamente mais tarde. |
-| Anfitrião, título | Sua sala |
+| Anfitrião, título | Sua sala (só para leitores de tela) |
 | Anfitrião, limite | Até {maxViewers} espectadores ao mesmo tempo. |
 | Anfitrião, contador | N/{maxViewers}, lido como 0 espectadores / 1 espectador / N espectadores |
 | Anfitrião, lista vazia | Ninguém assistindo ainda. Envie o link da sala. |

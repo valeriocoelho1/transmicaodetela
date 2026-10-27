@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router';
-import type { RoomViewer } from '@app/shared';
-import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
 import { Card } from '../components/Card';
@@ -11,6 +9,7 @@ import { LinkField } from '../components/LinkField';
 import { RoomBar } from '../components/RoomBar';
 import { StateMessage } from '../components/StateMessage';
 import { StatusPill } from '../components/StatusPill';
+import { ViewerList } from '../components/ViewerList';
 import { useDisplayName } from '../hooks/useDisplayName';
 import { useHostSession } from '../hooks/useHostSession';
 import {
@@ -25,7 +24,6 @@ import {
   RECONNECTING_MESSAGE,
   ROOM_NOT_FOUND_MESSAGE,
 } from '../lib/end-reason';
-import { formatViewerCount } from '../lib/format';
 
 function LocalPreview({ stream }: { stream: MediaStream }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -38,43 +36,6 @@ function LocalPreview({ stream }: { stream: MediaStream }) {
     };
   }, [stream]);
   return <video ref={ref} autoPlay playsInline muted />;
-}
-
-interface ViewerListProps {
-  viewers: RoomViewer[];
-  maxViewers: number | null;
-}
-
-function ViewerList({ viewers, maxViewers }: ViewerListProps) {
-  return (
-    <Card className="viewers">
-      <div className="viewers__head">
-        <h2 className="card__title">Espectadores</h2>
-        <span className="viewers__count" aria-label={formatViewerCount(viewers.length)}>
-          {viewers.length}
-          {maxViewers !== null && <span className="muted">/{maxViewers}</span>}
-        </span>
-      </div>
-      {viewers.length === 0 ? (
-        <p className="viewers__empty">
-          <Icon name="users" />
-          Ninguém assistindo ainda. Envie o link da sala.
-        </p>
-      ) : (
-        <ul className="viewer-list" aria-live="polite">
-          {viewers.map((viewer) => (
-            <li key={viewer.viewerId} className="viewer-list__item">
-              <Avatar name={viewer.name} size={34} />
-              <span className="viewer-list__name">{viewer.name}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {maxViewers !== null && (
-        <p className="viewers__hint muted">Até {maxViewers} espectadores ao mesmo tempo.</p>
-      )}
-    </Card>
-  );
 }
 
 export function HostPage() {
@@ -97,7 +58,7 @@ export function HostPage() {
     return (
       <Layout width="narrow">
         <RoomBar name={name} onRename={rename} />
-        <h1 className="page-title">Sua sala</h1>
+        <h1 className="sr-only">Sua sala</h1>
         <div className="card">
           <StateMessage
             icon={state === 'ended' ? 'stop' : 'alert'}
@@ -118,17 +79,14 @@ export function HostPage() {
 
   return (
     <Layout>
-      <RoomBar name={name} onRename={rename} />
-      <div className="page-head">
-        <h1 className="page-title">Sua sala</h1>
-        <div aria-live="polite">
-          {state === 'live' && <StatusPill tone="live" label="Ao vivo" />}
-          {state === 'connecting' && <StatusPill tone="neutral" label={CONNECTING_MESSAGE} />}
-          {state === 'reconnecting' && <StatusPill tone="warning" label={RECONNECTING_MESSAGE} />}
-        </div>
-      </div>
+      <RoomBar name={name} onRename={rename}>
+        {state === 'live' && <StatusPill tone="live" label="Ao vivo" />}
+        {state === 'connecting' && <StatusPill tone="neutral" label={CONNECTING_MESSAGE} />}
+        {state === 'reconnecting' && <StatusPill tone="warning" label={RECONNECTING_MESSAGE} />}
+      </RoomBar>
+      <h1 className="sr-only">Sua sala</h1>
 
-      <div className="host-grid">
+      <div className="room-grid">
         <div className="stage">
           <div className="tv pixel-box">
             <div className="stage__frame">
@@ -199,11 +157,22 @@ export function HostPage() {
           </div>
         </div>
 
-        <aside className="host-side">
+        <aside className="room-side">
           <Card title="Link da sala">
             <LinkField link={link} />
           </Card>
-          <ViewerList viewers={inRoom ? session.viewers : []} maxViewers={session.maxViewers} />
+          <ViewerList
+            viewers={
+              inRoom ? session.viewers.map(({ viewerId, name }) => ({ id: viewerId, name })) : []
+            }
+            maxViewers={session.maxViewers}
+            emptyText="Ninguém assistindo ainda. Envie o link da sala."
+            hint={
+              session.maxViewers === null
+                ? undefined
+                : `Até ${session.maxViewers} espectadores ao mesmo tempo.`
+            }
+          />
         </aside>
       </div>
     </Layout>
