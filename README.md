@@ -18,6 +18,8 @@
 ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 
+<img src="docs/assets/demo.gif" alt="Demonstração: criar uma sala, compartilhar a tela, copiar o link, espectadores entrando na lista e o anfitrião mudando o nome e a foto do perfil" width="860" />
+
 </div>
 
 ---
